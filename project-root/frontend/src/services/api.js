@@ -30,3 +30,32 @@ export function recommendRoute(payload) {
     body: JSON.stringify(payload),
   });
 }
+
+export async function fetchStreetRoute(waypoints) {
+  if (!Array.isArray(waypoints) || waypoints.length < 2) {
+    return null;
+  }
+
+  const coordinates = waypoints
+    .map((point) => `${point.lng},${point.lat}`)
+    .join(";");
+
+  const response = await fetch(
+    `https://router.project-osrm.org/route/v1/foot/${coordinates}?overview=full&geometries=geojson&steps=false`,
+  );
+
+  const data = await response.json().catch(() => ({}));
+
+  if (!response.ok || !data.routes?.length) {
+    throw new Error("No se pudo calcular la ruta peatonal.");
+  }
+
+  const route = data.routes[0];
+
+  return {
+    distanceKm: Number((route.distance / 1000).toFixed(2)),
+    durationMinutes: Math.round(route.duration / 60),
+    geometry: route.geometry.coordinates.map(([lng, lat]) => [lat, lng]),
+    mode: "walking-network",
+  };
+}

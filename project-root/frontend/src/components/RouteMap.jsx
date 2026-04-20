@@ -45,16 +45,30 @@ function createRouteMarkerIcon(routePosition, isSelected) {
   });
 }
 
-export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelect }) {
+export default function RouteMap({
+  route,
+  routeGeometry,
+  routeDisplayMode,
+  selectedPoi,
+  startLocation,
+  onPoiSelect,
+  onRouteDisplayModeChange,
+  t,
+  theme,
+}) {
   const routePoints = route.map((poi) => ({
     lat: poi.latitude,
     lng: poi.longitude,
   }));
 
-  const polylinePoints = [
+  const fallbackPolylinePoints = [
     [startLocation.lat, startLocation.lng],
     ...routePoints.map((point) => [point.lat, point.lng]),
   ];
+  const displayedPolylinePoints =
+    routeDisplayMode === "walking" && routeGeometry && routeGeometry.length > 1
+      ? routeGeometry
+      : fallbackPolylinePoints;
 
   const polylineStyle = useMemo(
     () => ({
@@ -63,17 +77,42 @@ export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelec
       opacity: 0.92,
       lineCap: "round",
       lineJoin: "round",
-      dashArray: "12 10",
+      dashArray: routeDisplayMode === "walking" ? undefined : "12 10",
     }),
-    [],
+    [routeDisplayMode],
   );
+
+  const tileUrl =
+    theme === "light"
+      ? "https://{s}.basemaps.cartocdn.com/light_all/{z}/{x}/{y}{r}.png"
+      : "https://{s}.basemaps.cartocdn.com/dark_all/{z}/{x}/{y}{r}.png";
 
   return (
     <div className="panel map-panel">
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Mapa</p>
-          <h2>Ruta interactiva</h2>
+          <p className="eyebrow">{t.map.eyebrow}</p>
+          <h2>{t.map.title}</h2>
+        </div>
+
+        <div className="toggle-group">
+          <span className="toggle-group-label">{t.map.routeDisplay}</span>
+          <div className="segmented-control">
+            <button
+              className={`segment-button ${routeDisplayMode === "walking" ? "active" : ""}`}
+              onClick={() => onRouteDisplayModeChange("walking")}
+              type="button"
+            >
+              {t.map.walking}
+            </button>
+            <button
+              className={`segment-button ${routeDisplayMode === "direct" ? "active" : ""}`}
+              onClick={() => onRouteDisplayModeChange("direct")}
+              type="button"
+            >
+              {t.map.direct}
+            </button>
+          </div>
         </div>
       </div>
 
@@ -83,8 +122,8 @@ export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelec
         zoom={13}
       >
         <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+          attribution="&copy; OpenStreetMap contributors &copy; CARTO"
+          url={tileUrl}
         />
 
         <CircleMarker
@@ -98,9 +137,9 @@ export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelec
           radius={10}
         >
           <Tooltip direction="top" offset={[0, -12]} opacity={1}>
-            Punto inicial
+            {t.map.startPoint}
           </Tooltip>
-          <Popup>Punto inicial</Popup>
+          <Popup>{t.map.startPoint}</Popup>
         </CircleMarker>
 
         {route.map((poi) => (
@@ -126,7 +165,7 @@ export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelec
           </Marker>
         ))}
 
-        {polylinePoints.length > 1 && (
+        {displayedPolylinePoints.length > 1 && (
           <>
             <Polyline
               pathOptions={{
@@ -136,9 +175,9 @@ export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelec
                 lineCap: "round",
                 lineJoin: "round",
               }}
-              positions={polylinePoints}
+              positions={displayedPolylinePoints}
             />
-            <Polyline pathOptions={polylineStyle} positions={polylinePoints} />
+            <Polyline pathOptions={polylineStyle} positions={displayedPolylinePoints} />
           </>
         )}
         <FitRouteBounds
@@ -151,7 +190,7 @@ export default function RouteMap({ route, selectedPoi, startLocation, onPoiSelec
 
       {selectedPoi && (
         <div className="map-selection">
-          Seleccionado: <strong>{selectedPoi.routePosition}. {selectedPoi.name}</strong>
+          {t.map.selected}: <strong>{selectedPoi.routePosition}. {selectedPoi.name}</strong>
         </div>
       )}
     </div>

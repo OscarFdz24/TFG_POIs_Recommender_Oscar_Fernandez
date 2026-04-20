@@ -19,6 +19,7 @@ export default function PreferenceForm({
   defaultStart,
   onSubmit,
   submitting,
+  t,
 }) {
   const [form, setForm] = useState(() => getInitialForm(defaultStart));
   const { error: geoError, loading: geoLoading, requestCurrentLocation } = useGeolocation();
@@ -63,7 +64,7 @@ export default function PreferenceForm({
   }
 
   async function handleUseCurrentLocation() {
-    const currentLocation = await requestCurrentLocation();
+    const currentLocation = await requestCurrentLocation(t.geo);
     setForm((current) => ({
       ...current,
       latitude: String(currentLocation.lat),
@@ -92,21 +93,21 @@ export default function PreferenceForm({
     <form className="panel preference-form" onSubmit={handleSubmit}>
       <div className="panel-header">
         <div>
-          <p className="eyebrow">Preferencias</p>
-          <h2>Diseña una ruta turística personalizada</h2>
+          <p className="eyebrow">{t.form.eyebrow}</p>
+          <h2>{t.form.title}</h2>
         </div>
         <button
           className="secondary-button"
           onClick={handleUseCurrentLocation}
           type="button"
         >
-          {geoLoading ? "Ubicando..." : "Usar mi ubicación"}
+          {geoLoading ? t.form.locating : t.form.useLocation}
         </button>
       </div>
 
       <div className="grid two-columns">
         <label>
-          <span>Latitud inicial</span>
+          <span>{t.form.latitude}</span>
           <input
             name="latitude"
             onChange={handleChange}
@@ -117,7 +118,7 @@ export default function PreferenceForm({
           />
         </label>
         <label>
-          <span>Longitud inicial</span>
+          <span>{t.form.longitude}</span>
           <input
             name="longitude"
             onChange={handleChange}
@@ -131,7 +132,7 @@ export default function PreferenceForm({
 
       <div className="grid two-columns">
         <label>
-          <span>Categorías de interés</span>
+          <span>{t.form.categories}</span>
           <select
             multiple
             name="categories"
@@ -147,7 +148,7 @@ export default function PreferenceForm({
         </label>
 
         <label>
-          <span>Subcategorías de interés</span>
+          <span>{t.form.subcategories}</span>
           <select
             multiple
             name="subcategories"
@@ -165,7 +166,7 @@ export default function PreferenceForm({
 
       <div className="grid three-columns">
         <label>
-          <span>Distancia máxima (km)</span>
+          <span>{t.form.maxDistance}</span>
           <input
             min="1"
             name="maxDistanceKm"
@@ -175,7 +176,7 @@ export default function PreferenceForm({
           />
         </label>
         <label>
-          <span>Número máximo de POIs</span>
+          <span>{t.form.maxPois}</span>
           <input
             max="12"
             min="1"
@@ -186,7 +187,7 @@ export default function PreferenceForm({
           />
         </label>
         <label>
-          <span>Tiempo disponible (min)</span>
+          <span>{t.form.availableTime}</span>
           <input
             min="30"
             name="availableTimeMinutes"
@@ -198,7 +199,7 @@ export default function PreferenceForm({
       </div>
 
       <label className="single-field">
-        <span>Rating mínimo</span>
+        <span>{t.form.minRating}</span>
         <input
           max="5"
           min="0"
@@ -213,11 +214,9 @@ export default function PreferenceForm({
       {(geoError || null) && <p className="inline-error">{geoError}</p>}
 
       <div className="form-footer">
-        <p>
-          Selección múltiple disponible con <strong>Ctrl</strong> o <strong>Cmd</strong>.
-        </p>
+        <p>{t.form.multiSelectHelp}</p>
         <button className="primary-button" disabled={submitting} type="submit">
-          {submitting ? "Generando ruta..." : "Generar ruta"}
+          {submitting ? t.form.submitting : t.form.submit}
         </button>
       </div>
     </form>

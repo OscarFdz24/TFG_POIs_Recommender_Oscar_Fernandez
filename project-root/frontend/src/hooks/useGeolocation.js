@@ -4,12 +4,12 @@ export function useGeolocation() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState("");
 
-  function requestCurrentLocation() {
+  function requestCurrentLocation(messages) {
     setError("");
 
     return new Promise((resolve, reject) => {
       if (!navigator.geolocation) {
-        const message = "Tu navegador no soporta geolocalización.";
+        const message = messages?.unsupported || "Geolocation is not supported.";
         setError(message);
         reject(new Error(message));
         return;
@@ -27,7 +27,7 @@ export function useGeolocation() {
         },
         () => {
           setLoading(false);
-          const message = "No se pudo obtener tu ubicación actual.";
+          const message = messages?.unavailable || "Could not get current location.";
           setError(message);
           reject(new Error(message));
         },
