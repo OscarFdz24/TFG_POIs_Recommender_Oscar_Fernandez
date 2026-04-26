@@ -1,4 +1,6 @@
 import { getAllPois } from "./poiDataService.js";
+import { spawn } from "node:child_process";
+import { env } from "../config/env.js";
 import { clamp, haversineDistanceKm } from "../utils/geo.js";
 import { toSlug } from "../utils/text.js";
 
@@ -226,7 +228,73 @@ export async function getFilteredPois({ category, subcategory, limit }) {
   return filtered.slice(0, limit || 200);
 }
 
+function runHybridRecommender(preferences) {
+  return new Promise((resolve, reject) => {
+    const child = spawn(env.pythonBin, [env.hybridRecommenderPath], {
+      stdio: ["pipe", "pipe", "pipe"],
+    });
+
+    let stdout = "";
+    let stderr = "";
+
+    child.stdout.on("data", (chunk) => {
+      stdout += chunk.toString("utf8");
+    });
+
+    child.stderr.on("data", (chunk) => {
+      stderr += chunk.toString("utf8");
+    });
+
+    child.on("error", (error) => {
+      reject(error);
+    });
+
+    child.on("close", (code) => {
+      let payload = {};
+
+      try {
+        payload = JSON.parse(stdout || "{}");
+      } catch {
+        const parseError = new Error("The hybrid recommender returned invalid JSON.");
+        parseError.statusCode = 500;
+        parseError.details = stdout;
+        reject(parseError);
+        return;
+      }
+
+      if (code !== 0 || payload.error) {
+        const recommenderError = new Error(
+          payload.error?.message || stderr || "Hybrid recommender failed.",
+        );
+        recommenderError.statusCode = payload.error?.message === "Invalid start location." ? 400 : 500;
+        recommenderError.details = {
+          code,
+          stderr,
+          type: payload.error?.type,
+        };
+        reject(recommenderError);
+        return;
+      }
+
+      resolve({
+        ...payload,
+        summary: {
+          ...payload.summary,
+          generatedAt: new Date().toISOString(),
+        },
+      });
+    });
+
+    child.stdin.write(JSON.stringify(preferences || {}));
+    child.stdin.end();
+  });
+}
+
 export async function recommendRoute(preferences) {
+  return runHybridRecommender(preferences);
+}
+
+export async function recommendRouteWithTemporaryHeuristic(preferences) {
   const pois = await getAllPois();
   const categories = normalizeArray(preferences.categories).map(toSlug);
   const subcategories = normalizeArray(preferences.subcategories).map(toSlug);

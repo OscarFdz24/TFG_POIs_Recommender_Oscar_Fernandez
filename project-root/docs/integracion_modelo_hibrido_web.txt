@@ -1,0 +1,257 @@
+INTEGRACION DEL MODELO HIBRIDO CON LA WEB
+=========================================
+
+Objetivo
+--------
+El objetivo de esta integracion es que la aplicacion web deje de usar la
+heuristica temporal escrita en Node.js y empiece a consumir el sistema hibrido
+final desarrollado en el notebook:
+
+modelo/06_Hybrid_Recommender_Route_System.ipynb
+
+La web no ejecuta directamente el notebook. El notebook se usa como base
+experimental y metodologica. Su logica validada se ha convertido en un script
+Python reutilizable:
+
+ml_service/recommend_route.py
+
+
+Arquitectura resultante
+-----------------------
+El flujo queda asi:
+
+1. El usuario rellena preferencias en la web React.
+2. React envia una peticion POST a:
+
+   /api/recommend-route
+
+3. El backend Node.js recibe la peticion.
+4. Node.js ejecuta internamente el motor Python:
+
+   ml_service/recommend_route.py
+
+5. El motor Python carga:
+
+   data/pois_barcelona_hibrido.parquet
+
+6. Python calcula candidatos y ruta final con el recomendador hibrido.
+7. Python devuelve JSON a Node.js.
+8. Node.js devuelve ese JSON al frontend.
+9. React pinta la ruta en el mapa y en el panel lateral.
+
+
+Componentes principales
+-----------------------
+
+Frontend:
+
+project-root/frontend
+
+Responsabilidad:
+- mostrar formulario de preferencias
+- enviar preferencias al backend
+- recibir ruta, candidatos y resumen
+- pintar POIs y ruta en mapa
+
+
+Backend Node.js:
+
+project-root/backend
+
+Endpoint principal:
+
+POST /api/recommend-route
+
+Archivos relevantes:
+
+project-root/backend/src/controllers/recommendationController.js
+project-root/backend/src/services/recommendationService.js
+project-root/backend/src/config/env.js
+
+Responsabilidad:
+- mantener la API que ya consume el frontend
+- invocar el motor Python
+- devolver al frontend el resultado en formato JSON
+
+
+Motor Python:
+
+ml_service/recommend_route.py
+
+Responsabilidad:
+- cargar el dataset hibrido
+- construir matriz TF-IDF sobre content_base
+- calcular similitud semantica
+- filtrar candidatos por preferencias
+- calcular hybrid_candidate_score
+- construir ruta greedy con restricciones
+- devolver candidates, route, summary y meta
+
+
+Dataset usado
+-------------
+El sistema integrado usa el dataset final enriquecido:
+
+data/pois_barcelona_hibrido.parquet
+
+Este dataset se genera con:
+
+src/build_hybrid_dataset.py
+
+Ese script NO se ejecuta en cada recomendacion. Solo debe ejecutarse cuando
+cambie el dataset base o la logica de enriquecimiento.
+
+El backend tambien usa por defecto:
+
+data/pois_barcelona_hibrido.csv
+
+para endpoints auxiliares como categorias y listado de POIs.
+
+
+Metodologia del recomendador
+----------------------------
+El sistema mantiene la metodologia del notebook 06 y se divide en dos fases.
+
+FASE 1: Seleccion de candidatos
+
+Para cada POI se combinan:
+
+- similarity_score:
+  similitud TF-IDF entre las preferencias textuales del usuario y content_base.
+
+- quality_signal:
+  senal estatica ya calculada en el dataset hibrido. Combina score, rating y
+  match_confidence.
+
+- start_proximity_norm:
+  proximidad entre el punto inicial del usuario y el POI.
+
+Con estas senales se calcula:
+
+hybrid_candidate_score =
+  0.45 * quality_norm +
+  0.35 * similarity_norm +
+  0.20 * start_proximity_norm
+
+Tambien se aplican filtros:
+
+- categorias
+- subcategorias
+- rating minimo
+- distancia maxima desde el punto inicial
+
+
+FASE 2: Construccion de ruta
+
+Con los mejores candidatos se aplica una heuristica greedy.
+
+En cada paso se elige el siguiente POI maximizando route_utility:
+
+- score hibrido del candidato
+- cercania al punto actual
+- bonus por mantenerse en el mismo cluster_geo
+- penalizacion por duracion de visita
+
+La ruta respeta restricciones:
+
+- numero maximo de POIs
+- distancia maxima total, incluyendo retorno al origen
+- tiempo maximo disponible
+- distancia maxima por tramo
+
+
+Contrato de respuesta
+---------------------
+El backend devuelve un JSON con esta estructura general:
+
+{
+  "preferences": { ... },
+  "candidates": [ ... ],
+  "route": [ ... ],
+  "summary": { ... },
+  "meta": { ... }
+}
+
+Campos importantes para el frontend:
+
+- route:
+  lista ordenada de POIs con routePosition, latitude, longitude, name,
+  category, subcategory y metricas del modelo.
+
+- summary:
+  totalPois, totalDistanceKm, totalVisitMinutes, candidatePool,
+  requestedPois, avgCandidateScore y avgSimilarityScore.
+
+- meta:
+  informacion metodologica. Ahora debe aparecer:
+
+  mode: python-hybrid-recommender
+  dataset: pois_barcelona_hibrido.parquet
+
+
+Como arrancar la aplicacion
+---------------------------
+Desde la raiz del proyecto:
+
+.\start-dev.ps1
+
+O, si PowerShell bloquea scripts:
+
+powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
+
+Esto abre backend y frontend.
+
+El script start-dev.ps1 detecta el entorno:
+
+C:\Users\User\miniconda3\envs\master_ds_clean\python.exe
+
+y lo pasa al backend mediante PYTHON_BIN. Esto es necesario porque el motor
+hibrido usa pandas y scikit-learn, instalados en el entorno del proyecto.
+
+Frontend:
+
+http://localhost:5173
+
+Backend:
+
+http://localhost:4000/api/health
+
+
+Variables configurables
+-----------------------
+En el backend pueden configurarse estas variables de entorno:
+
+PYTHON_BIN
+
+Ejemplo:
+
+PYTHON_BIN=python
+
+o si se quiere usar un entorno concreto:
+
+PYTHON_BIN=C:\Users\User\miniconda3\envs\master_ds_clean\python.exe
+
+
+HYBRID_RECOMMENDER_PATH
+
+Ruta alternativa al script Python del recomendador.
+
+
+DATASET_PATH
+
+Ruta alternativa al CSV usado por endpoints auxiliares del backend.
+
+
+Notas importantes
+-----------------
+- El notebook no desaparece: sigue siendo la evidencia experimental y
+  metodologica del TFM.
+
+- El script Python es la version productiva de la logica del notebook.
+
+- El frontend no necesita saber que por debajo hay Python. Sigue llamando al
+  mismo endpoint /api/recommend-route.
+
+- La integracion actual prioriza claridad y trazabilidad para el TFM. En una
+  fase posterior podria optimizarse manteniendo el proceso Python levantado como
+  API FastAPI persistente, para evitar recalcular TF-IDF en cada request.
