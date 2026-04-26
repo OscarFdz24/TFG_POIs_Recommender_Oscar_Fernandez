@@ -1,0 +1,508 @@
+EXPLICACION DEL ULTIMO TRABAJO REALIZADO EN EL TFM
+=================================================
+
+1. OBJETIVO DE ESTA FASE
+------------------------
+
+El objetivo de esta fase ha sido pasar de varios modulos separados a una primera
+version funcional del sistema hibrido final del TFM.
+
+Antes de esta fase, el proyecto ya tenia:
+
+- un baseline con ranking y ruta simple
+- un recomendador basado en contenido con TF-IDF
+- un clustering geografico con K-Means
+- un analisis de ranking adicional que concluia que `score` era una buena senal
+- una parte web con backend y frontend preparada para integrar la logica real
+
+Lo que faltaba era unir todo eso en una logica unica que hiciera dos cosas:
+
+1. seleccionar candidatos relevantes
+2. construir una ruta final razonable para el usuario
+
+
+2. PRIMER PASO: AJUSTE DEL NOTEBOOK 05
+--------------------------------------
+
+Se trabajo sobre:
+
+- modelo/05_Route_Optimization_Greedy.ipynb
+
+Problema detectado:
+
+El notebook asumía que la columna `cluster_geo` ya existia en el parquet principal,
+pero en el dataset real esa columna no estaba persistida.
+
+Que se hizo:
+
+- se modifico el notebook para que no falle si `cluster_geo` no existe
+- se dejo `cluster_geo` como senal opcional
+- se mejoro la carga del dataset para que funcione con rutas mas robustas
+
+Que hace este notebook 05:
+
+- carga los datos
+- revisa las variables utiles para la fase de ruta
+- define restricciones del usuario
+- construye un score para decidir el siguiente POI
+- aplica un algoritmo greedy con restricciones
+- calcula metricas de la ruta
+
+Este notebook representa la fase de algoritmo de rutas, pero todavia no integra
+de manera completa el sistema hibrido final.
+
+
+3. DECISION TECNICA: CREAR UN DATASET HIBRIDO
+---------------------------------------------
+
+Tras revisar el estado del proyecto, se tomo una decision tecnica importante:
+
+Para construir bien el sistema hibrido final no bastaba con conectar notebooks
+conceptualmente. Era mejor crear un dataset enriquecido y persistido que reuniera
+las senales necesarias en una sola base.
+
+Motivos:
+
+- `cluster_geo` estaba en el notebook de clustering, pero no en el dataset final
+- hacia falta una columna textual consolidada para TF-IDF
+- hacia falta normalizar algunas senales para combinarlas mejor
+- hacia falta una base comun reutilizable tanto en notebooks como luego en backend
+
+Por eso se creo una nueva base derivada del dataset actual:
+
+- data/pois_barcelona_hibrido.parquet
+- data/pois_barcelona_hibrido.csv
+
+
+4. SCRIPT CREADO PARA GENERAR EL DATASET HIBRIDO
+------------------------------------------------
+
+Se creo el archivo:
+
+- src/build_hybrid_dataset.py
+
+Este script genera el dataset hibrido final a partir de:
+
+- data/pois_barcelona_procesados.parquet
+
+Flujo del script:
+
+4.1. Carga del dataset original
+
+- lee el parquet procesado actual
+- crea una copia para no alterar el dataset fuente
+
+4.2. Imputacion de variables utiles
+
+Se crean columnas preparadas para el sistema final:
+
+- `visit_duration_filled`
+- `rating_filled`
+- `match_confidence_filled`
+
+Objetivo:
+
+- evitar nulos en variables clave
+- facilitar despues las restricciones y el scoring
+
+4.3. Creacion de `content_base`
+
+Se construye una columna textual unificada a partir de:
+
+- `name`
+- `category`
+- `subcategory`
+- `description`
+- `tags_str`
+
+Esta columna se limpia y normaliza para dejar un texto base coherente y reutilizable.
+
+Su finalidad es servir como entrada estable del recomendador TF-IDF dentro del
+sistema hibrido final.
+
+4.4. Senales auxiliares de texto
+
+Se crean:
+
+- `content_length`
+- `has_content_text`
+
+Objetivo:
+
+- saber si un POI tiene texto suficiente
+- disponer de senales auxiliares para analisis o control de calidad
+
+4.5. Reconstruccion de `cluster_geo`
+
+Como el parquet real no tenia `cluster_geo`, se reconstruyo aplicando K-Means
+de nuevo sobre:
+
+- `latitude`
+- `longitude`
+
+Configuracion usada:
+
+- `n_clusters = 7`
+- `random_state = 42`
+- `n_init = 10`
+
+Esta decision es coherente con el notebook de clustering geografico, donde se habia
+tomado precisamente `k = 7` como valor final.
+
+Ademas se crea:
+
+- `has_cluster_geo`
+
+4.6. Creacion de senales normalizadas
+
+Se generan:
+
+- `score_norm`
+- `rating_norm`
+- `match_confidence_norm`
+- `visit_duration_norm`
+
+Objetivo:
+
+- poder combinar senales heterogeneas en el score hibrido
+- evitar escalas incompatibles entre variables
+
+4.7. Creacion de `quality_signal`
+
+Se crea una senal sintetica de calidad estatica:
+
+- 60% `score_norm`
+- 25% `rating_norm`
+- 15% `match_confidence_norm`
+
+Finalidad:
+
+- disponer de una medida compacta y reutilizable de calidad/relevancia
+- complementar `score` cuando se mezcle con similitud semantica y proximidad
+
+4.8. Columna reservada `similarity_score`
+
+Se deja creada la columna:
+
+- `similarity_score`
+
+pero con valores vacios (`NaN`), porque no es una senal fija del dataset.
+
+La similitud depende del contexto de recomendacion:
+
+- del POI de referencia
+- o de la consulta textual del usuario
+
+4.9. Persistencia del dataset enriquecido
+
+El script guarda el resultado en:
+
+- data/pois_barcelona_hibrido.parquet
+- data/pois_barcelona_hibrido.csv
+
+
+5. RESULTADO DEL DATASET HIBRIDO
+--------------------------------
+
+El script se ejecuto realmente sobre el entorno `master_ds_clean`, no solo se dejo
+escrito.
+
+Resultado:
+
+- 775 filas
+- 35 columnas
+- `cluster_geo` ya persistido
+- variables hibridas nuevas listas para integracion
+
+Columnas nuevas principales:
+
+- `content_base`
+- `content_length`
+- `has_content_text`
+- `cluster_geo`
+- `has_cluster_geo`
+- `visit_duration_filled`
+- `rating_filled`
+- `match_confidence_filled`
+- `score_norm`
+- `rating_norm`
+- `match_confidence_norm`
+- `visit_duration_norm`
+- `quality_signal`
+- `similarity_score`
+
+
+6. CREACION DEL NOTEBOOK DEL SISTEMA HIBRIDO FINAL
+--------------------------------------------------
+
+Se creo el notebook:
+
+- modelo/06_Hybrid_Recommender_Route_System.ipynb
+
+Este notebook ya no trabaja un modulo aislado, sino que integra en un solo flujo:
+
+- TF-IDF para similitud semantica
+- `quality_signal` y `score` para relevancia
+- `cluster_geo` para coherencia espacial
+- greedy con restricciones para construir la ruta final
+
+
+7. ESTRUCTURA DEL NOTEBOOK 06
+-----------------------------
+
+El notebook sigue una estructura ordenada:
+
+7.1. Carga de librerias
+
+- pandas
+- numpy
+- matplotlib
+- TF-IDF
+- cosine similarity
+
+7.2. Carga del dataset hibrido
+
+- lee `pois_barcelona_hibrido.parquet`
+- se dejo una logica de rutas robusta para que funcione desde distintos contextos
+
+7.3. Revision de variables clave
+
+Se revisan, entre otras:
+
+- `category`
+- `subcategory`
+- `score`
+- `quality_signal`
+- `cluster_geo`
+- `visit_duration_filled`
+- `content_base`
+
+7.4. Vectorizacion TF-IDF
+
+Se aplica TF-IDF sobre:
+
+- `content_base`
+
+Objetivo:
+
+- obtener la senal semantica del sistema hibrido final
+
+7.5. Funciones auxiliares
+
+Se implementan funciones para:
+
+- calcular distancia haversine
+- normalizar señales
+- construir una consulta textual
+- calcular similitud por POI de referencia o por texto libre
+
+7.6. Construccion de candidatos hibridos
+
+Se crea una capa intermedia de candidatos que:
+
+- calcula `similarity_score`
+- filtra por categoria y subcategoria
+- filtra por rating minimo
+- filtra por distancia desde el punto inicial
+- construye un `hybrid_candidate_score`
+
+Este score mezcla:
+
+- `quality_signal`
+- similitud semantica
+- proximidad inicial al origen
+
+7.7. Construccion de ruta
+
+Con los candidatos ya seleccionados, se aplica un algoritmo greedy que:
+
+- decide el siguiente POI
+- calcula distancia desde el punto actual
+- controla el retorno al origen
+- controla tiempo maximo
+- controla distancia total maxima
+- controla distancia maxima por tramo
+- favorece continuidad espacial con `cluster_geo`
+
+7.8. Salida final
+
+El notebook devuelve:
+
+- candidatos hibridos
+- ruta final
+- resumen de metricas de la ruta
+
+
+8. LOGICA DEL SISTEMA HIBRIDO FINAL
+-----------------------------------
+
+La logica final queda dividida en dos capas:
+
+8.1. Capa de seleccion de candidatos
+
+Entrada:
+
+- preferencias del usuario
+- posible consulta textual
+- posible POI de referencia
+
+Proceso:
+
+- calcular similitud TF-IDF
+- aplicar filtros del usuario
+- medir distancia al origen
+- combinar señales en `hybrid_candidate_score`
+
+Salida:
+
+- conjunto reducido de candidatos relevantes
+
+8.2. Capa de construccion de ruta
+
+Entrada:
+
+- candidatos ya priorizados
+- restricciones del usuario
+
+Proceso:
+
+- evaluar los candidatos restantes en cada iteracion
+- elegir el siguiente POI mas conveniente
+- controlar restricciones de viabilidad
+
+Salida:
+
+- ruta final con orden de visita
+
+
+9. VERIFICACION REALIZADA
+-------------------------
+
+No se dejo solo implementado: tambien se verifico.
+
+Que se hizo:
+
+- se cargo el notebook 06 como JSON
+- se ejecutaron secuencialmente sus celdas de codigo
+- se uso el entorno `master_ds_clean`
+
+Problema detectado en la primera prueba:
+
+- el notebook asumía una ruta concreta al dataset hibrido
+
+Correccion aplicada:
+
+- se modifico la carga para que el notebook funcione tanto si se ejecuta desde
+  la carpeta `modelo` como desde la raiz del proyecto
+
+Despues de esa correccion:
+
+- el notebook 06 se ejecuto correctamente en un smoke test
+
+
+10. RESULTADO DE LA PRUEBA DEL NOTEBOOK 06
+------------------------------------------
+
+En la prueba ejecutada, el sistema:
+
+- genero candidatos hibridos
+- construyo una ruta valida
+- devolvio metricas finales coherentes
+
+Ejemplo de resumen obtenido:
+
+- `total_pois = 5`
+- `distance_with_return_km = 3.6`
+- `total_visit_minutes = 220`
+- `avg_candidate_score = 0.7597`
+
+Esto demuestra que el pipeline no es solo teorico, sino funcional.
+
+
+11. COMO SE RELACIONA ESTO CON LOS NOTEBOOKS ANTERIORES
+-------------------------------------------------------
+
+No se han rehecho los notebooks previos desde cero.
+Lo que se ha hecho es aprovechar sus resultados y convertirlos en un flujo unico.
+
+Relaciones principales:
+
+11.1. Baseline_Recommender.ipynb
+
+Aporta:
+
+- la idea de ranking inicial
+- la idea de ruta greedy
+
+11.2. Content_Based_Recommender.ipynb
+
+Aporta:
+
+- la logica de similitud semantica con TF-IDF
+
+En el sistema final se reformula sobre:
+
+- `content_base`
+
+11.3. Geographic_Clustering.ipynb
+
+Aporta:
+
+- la senal espacial `cluster_geo`
+
+Ahora esa senal ya queda persistida dentro del dataset hibrido.
+
+11.4. 04_Ranking_Adicional.ipynb
+
+Aporta:
+
+- la conclusion de que `score` es una buena senal principal de ranking
+
+En el sistema hibrido final esa idea se incorpora en:
+
+- `quality_signal`
+- el score de candidatos
+
+
+12. QUE SE HA CONSEGUIDO AL FINAL
+---------------------------------
+
+Con este trabajo se ha conseguido:
+
+1. un dataset hibrido persistido y reutilizable
+2. una primera version funcional del sistema hibrido final en notebook
+3. una logica clara para pasar luego al backend
+
+En otras palabras:
+
+- antes habia modulos separados
+- ahora ya existe un flujo hibrido unificado
+
+
+13. QUE FALTA DESPUES DE ESTO
+-----------------------------
+
+Lo siguiente ya no es tanto crear el modelo hibrido, porque esa parte ya esta
+definida a nivel de modelado.
+
+El siguiente paso natural seria:
+
+- trasladar la logica del notebook 06 al backend
+- hacer que la API use el dataset hibrido
+- sustituir la heuristica temporal del backend por la logica real del sistema
+- conectar frontend y backend con esta estrategia final
+
+
+14. IDEA CLAVE PARA RECORDAR
+----------------------------
+
+La idea principal de todo este bloque es esta:
+
+El sistema hibrido final del TFM ya no recomienda solo POIs sueltos.
+Ahora:
+
+- selecciona candidatos combinando semantica, calidad y proximidad
+- y despues construye una ruta final viable usando restricciones reales
+
+Esa es la pieza que faltaba para pasar de modulos analiticos separados a un
+recomendador de rutas util y coherente.
