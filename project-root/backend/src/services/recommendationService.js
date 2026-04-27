@@ -4,6 +4,13 @@ import { env } from "../config/env.js";
 import { clamp, haversineDistanceKm } from "../utils/geo.js";
 import { toSlug } from "../utils/text.js";
 
+// Este servicio tiene dos responsabilidades:
+// 1. Mantener endpoints auxiliares de POIs/categorias usados por la web.
+// 2. Conectar /api/recommend-route con el motor Python del recomendador hibrido.
+//
+// La heuristica antigua de Node se conserva al final del archivo como respaldo
+// historico, pero recommendRoute() ya usa el modelo hibrido real.
+
 function normalizeArray(values) {
   if (!Array.isArray(values)) {
     return [];
@@ -229,11 +236,19 @@ export async function getFilteredPois({ category, subcategory, limit }) {
 }
 
 function runHybridRecommender(preferences) {
+  // Ejecuta el script Python productivo del recomendador hibrido.
+  //
+  // Node no calcula TF-IDF ni rutas directamente. Su papel aqui es actuar como
+  // puente: recibe el JSON del frontend, lo manda al proceso Python por stdin y
+  // devuelve al frontend el JSON que Python escribe por stdout.
   return new Promise((resolve, reject) => {
+    // env.pythonBin apunta al Python del entorno con pandas/scikit-learn.
+    // env.hybridRecommenderPath apunta a ml_service/recommend_route.py.
     const child = spawn(env.pythonBin, [env.hybridRecommenderPath], {
       stdio: ["pipe", "pipe", "pipe"],
     });
 
+    // Acumulamos stdout y stderr porque los procesos hijos entregan datos en chunks.
     let stdout = "";
     let stderr = "";
 
@@ -246,10 +261,12 @@ function runHybridRecommender(preferences) {
     });
 
     child.on("error", (error) => {
+      // Error al lanzar el proceso, por ejemplo Python no encontrado.
       reject(error);
     });
 
     child.on("close", (code) => {
+      // Cuando Python termina, intentamos parsear su stdout como JSON.
       let payload = {};
 
       try {
@@ -263,6 +280,8 @@ function runHybridRecommender(preferences) {
       }
 
       if (code !== 0 || payload.error) {
+        // Si Python sale con codigo != 0 o devuelve { error }, lo convertimos
+        // en error HTTP para que Express responda correctamente.
         const recommenderError = new Error(
           payload.error?.message || stderr || "Hybrid recommender failed.",
         );
@@ -277,6 +296,7 @@ function runHybridRecommender(preferences) {
       }
 
       resolve({
+        // Aniadimos timestamp en Node para indicar cuando se genero la respuesta API.
         ...payload,
         summary: {
           ...payload.summary,
@@ -285,16 +305,21 @@ function runHybridRecommender(preferences) {
       });
     });
 
+    // Enviamos al motor Python exactamente las preferencias recibidas de React.
     child.stdin.write(JSON.stringify(preferences || {}));
     child.stdin.end();
   });
 }
 
 export async function recommendRoute(preferences) {
+  // Funcion usada por recommendationController.js.
+  // Mantiene el mismo contrato de API, pero ahora delega en Python.
   return runHybridRecommender(preferences);
 }
 
 export async function recommendRouteWithTemporaryHeuristic(preferences) {
+  // Implementacion anterior en Node.js. Se deja como referencia/backup para
+  // comparar el sistema temporal con el sistema hibrido final.
   const pois = await getAllPois();
   const categories = normalizeArray(preferences.categories).map(toSlug);
   const subcategories = normalizeArray(preferences.subcategories).map(toSlug);

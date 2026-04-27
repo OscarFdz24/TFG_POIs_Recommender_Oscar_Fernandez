@@ -1,0 +1,711 @@
+FLUJO COMPLETO: DE PREFERENCIAS DEL USUARIO A RUTA RECOMENDADA
+==============================================================
+
+Este documento explica el recorrido completo de una recomendacion dentro de la
+aplicacion web: desde que el usuario introduce preferencias hasta que el sistema
+hibrido devuelve la ruta final y el frontend la muestra en el mapa.
+
+
+1. El usuario introduce preferencias en la web
+----------------------------------------------
+
+Archivo principal:
+
+project-root/frontend/src/components/PreferenceForm.jsx
+
+Que ocurre aqui:
+
+- El usuario introduce punto de inicio:
+  - latitud
+  - longitud
+
+- El usuario selecciona restricciones/preferencias:
+  - categorias
+  - subcategorias
+  - distancia maxima
+  - numero maximo de POIs
+  - tiempo disponible
+  - rating minimo
+
+- Cuando pulsa el boton de recomendar, se construye un objeto JavaScript con
+  esta forma:
+
+{
+  startLocation: {
+    lat: ...,
+    lng: ...
+  },
+  categories: [...],
+  subcategories: [...],
+  maxDistanceKm: ...,
+  maxPois: ...,
+  availableTimeMinutes: ...,
+  minRating: ...
+}
+
+Siguiente paso:
+
+PreferenceForm.jsx llama a la funcion onSubmit, que viene desde App.jsx.
+
+
+2. App.jsx recibe el formulario y llama a la API
+-----------------------------------------------
+
+Archivo:
+
+project-root/frontend/src/App.jsx
+
+Funcion relevante:
+
+handleSubmit(preferences)
+
+Que ocurre aqui:
+
+- App.jsx recibe las preferencias del formulario.
+- Activa el estado de carga.
+- Llama a la funcion recommendRoute(preferences).
+
+Siguiente paso:
+
+recommendRoute esta definida en:
+
+project-root/frontend/src/services/api.js
+
+
+3. El frontend envia una peticion HTTP al backend
+------------------------------------------------
+
+Archivo:
+
+project-root/frontend/src/services/api.js
+
+Funcion relevante:
+
+recommendRoute(payload)
+
+Que ocurre aqui:
+
+- Se envia una peticion POST a:
+
+  /api/recommend-route
+
+- El body de la peticion contiene las preferencias del usuario en JSON.
+
+Ejemplo:
+
+{
+  "startLocation": {
+    "lat": 41.4035,
+    "lng": 2.17437
+  },
+  "categories": ["religious"],
+  "subcategories": ["cathedral"],
+  "maxDistanceKm": 5,
+  "maxPois": 5,
+  "availableTimeMinutes": 240,
+  "minRating": 4
+}
+
+Siguiente paso:
+
+La peticion llega al backend Node.js.
+
+
+4. El backend recibe la ruta /api/recommend-route
+------------------------------------------------
+
+Archivo:
+
+project-root/backend/src/routes/index.js
+
+Linea logica:
+
+router.post("/recommend-route", asyncHandler(postRecommendRoute));
+
+Que ocurre aqui:
+
+- Express detecta que ha llegado un POST a /api/recommend-route.
+- Redirige la peticion al controlador postRecommendRoute.
+
+Siguiente paso:
+
+El controlador esta en:
+
+project-root/backend/src/controllers/recommendationController.js
+
+
+5. El controlador llama al servicio de recomendacion
+---------------------------------------------------
+
+Archivo:
+
+project-root/backend/src/controllers/recommendationController.js
+
+Funcion relevante:
+
+postRecommendRoute(req, res)
+
+Que ocurre aqui:
+
+- Lee las preferencias desde req.body.
+- Llama a recommendRoute(req.body).
+- Devuelve al frontend el resultado en formato JSON.
+
+Siguiente paso:
+
+recommendRoute esta definida en:
+
+project-root/backend/src/services/recommendationService.js
+
+
+6. Node.js actua como puente hacia Python
+-----------------------------------------
+
+Archivo:
+
+project-root/backend/src/services/recommendationService.js
+
+Funciones relevantes:
+
+recommendRoute(preferences)
+runHybridRecommender(preferences)
+
+Que ocurre aqui:
+
+- recommendRoute ya no usa la heuristica temporal de Node.js.
+- Ahora llama a runHybridRecommender.
+- runHybridRecommender lanza un proceso Python usando child_process.spawn.
+
+El script Python ejecutado es:
+
+ml_service/recommend_route.py
+
+Node le envia a Python las preferencias por stdin:
+
+child.stdin.write(JSON.stringify(preferences || {}));
+
+Siguiente paso:
+
+El proceso Python recibe esas preferencias y ejecuta el recomendador hibrido.
+
+
+7. Configuracion usada para encontrar Python y el script
+-------------------------------------------------------
+
+Archivo:
+
+project-root/backend/src/config/env.js
+
+Que ocurre aqui:
+
+- Define la ruta del script Python:
+
+  ../ml_service/recommend_route.py
+
+- Define que interprete Python usar:
+
+  process.env.PYTHON_BIN || "python"
+
+Durante desarrollo, start-dev.ps1 establece PYTHON_BIN apuntando al entorno
+Conda del proyecto:
+
+C:\Users\User\miniconda3\envs\master_ds_clean\python.exe
+
+Esto es importante porque ese entorno contiene:
+
+- pandas
+- scikit-learn
+- pyarrow
+
+
+8. Python recibe el JSON y ejecuta main()
+----------------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion de entrada:
+
+main()
+
+Que ocurre aqui:
+
+- Python lee stdin:
+
+  payload = json.loads(sys.stdin.read() or "{}")
+
+- Luego llama a:
+
+  run_recommendation(payload)
+
+Siguiente paso:
+
+run_recommendation es la funcion central que orquesta el sistema hibrido.
+
+
+9. run_recommendation ejecuta el pipeline hibrido completo
+---------------------------------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion principal:
+
+run_recommendation(payload)
+
+Que ocurre aqui:
+
+9.1. Comprueba que existe el dataset hibrido
+
+Dataset usado:
+
+data/pois_barcelona_hibrido.parquet
+
+Este dataset fue generado previamente con:
+
+src/build_hybrid_dataset.py
+
+El dataset NO se genera en cada recomendacion. Ya debe existir.
+
+
+9.2. Normaliza las preferencias del usuario
+
+Funcion:
+
+normalize_preferences(payload)
+
+Convierte el formato del frontend al formato interno del modelo.
+
+Ejemplo:
+
+Frontend:
+
+maxDistanceKm
+availableTimeMinutes
+startLocation.lat
+
+Python interno:
+
+max_distance_km
+max_time_minutes
+start_lat
+
+Tambien aplica limites razonables a valores numericos.
+
+
+9.3. Carga el dataset hibrido
+
+Codigo logico:
+
+df = pd.read_parquet(DATASET_PATH)
+
+El dataset contiene columnas ya preparadas:
+
+- content_base
+- quality_signal
+- cluster_geo
+- visit_duration_filled
+- rating_filled
+- score_norm
+- rating_norm
+- match_confidence_norm
+
+
+9.4. Construye TF-IDF sobre content_base
+
+Codigo logico:
+
+vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+tfidf_matrix = vectorizer.fit_transform(df["content_base"])
+
+Objetivo:
+
+- Convertir el texto consolidado de cada POI en vectores numericos.
+- Permitir calcular similitud semantica entre preferencias y POIs.
+
+
+10. Primera capa del modelo: seleccion de candidatos
+---------------------------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion:
+
+build_hybrid_candidates(...)
+
+Que ocurre aqui:
+
+10.1. Calcula similitud semantica
+
+Funcion:
+
+calculate_similarity(...)
+
+Usa TF-IDF para calcular similarity_score.
+
+La consulta textual se construye con:
+
+build_query_text(preferences)
+
+Actualmente combina:
+
+- queryText si existe
+- categorias
+- subcategorias
+
+
+10.2. Aplica filtros del usuario
+
+Filtros:
+
+- categoria
+- subcategoria
+- rating minimo
+- distancia maxima desde el punto inicial
+
+
+10.3. Calcula distancia al origen
+
+Funcion:
+
+haversine_km(...)
+
+Se calcula:
+
+distance_from_start_km
+
+
+10.4. Normaliza senales
+
+Senales:
+
+- similarity_score
+- quality_signal
+- distance_from_start_km
+
+Se transforman en:
+
+- similarity_norm
+- quality_norm
+- start_proximity_norm
+
+
+10.5. Calcula hybrid_candidate_score
+
+Formula:
+
+hybrid_candidate_score =
+  0.45 * quality_norm +
+  0.35 * similarity_norm +
+  0.20 * start_proximity_norm
+
+Este score representa la utilidad inicial de cada POI antes de construir la ruta.
+
+
+10.6. Selecciona top candidatos
+
+Se ordenan los POIs por hybrid_candidate_score y se mantiene un top-K.
+
+Resultado de esta fase:
+
+candidates
+
+Siguiente paso:
+
+Los candidatos pasan a la construccion de ruta.
+
+
+11. Segunda capa del modelo: construccion de ruta
+------------------------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion:
+
+build_hybrid_route(candidates, preferences)
+
+Que ocurre aqui:
+
+- Se empieza desde el punto inicial del usuario.
+- Se construye la ruta de forma greedy.
+- En cada iteracion se decide cual es el mejor siguiente POI.
+
+
+11.1. Puntuar posibles siguientes POIs
+
+Funcion:
+
+score_next_pois(...)
+
+Para cada candidato restante calcula:
+
+- distance_from_current_km
+- return_to_start_km
+- candidate_norm
+- proximity_norm
+- duration_penalty
+- cluster_bonus
+
+
+11.2. Calcula route_utility
+
+Formula:
+
+route_utility =
+  0.55 * candidate_norm +
+  0.30 * proximity_norm +
+  0.10 * cluster_bonus -
+  0.05 * duration_penalty
+
+Interpretacion:
+
+- favorece POIs buenos segun el score hibrido
+- favorece POIs cercanos al punto actual
+- favorece coherencia geografica con cluster_geo
+- penaliza visitas demasiado largas
+
+
+11.3. Aplica restricciones de ruta
+
+Restricciones:
+
+- max_pois
+- max_distance_km
+- max_time_minutes
+- max_leg_distance_km
+- retorno al origen incluido en el calculo de distancia total
+
+Si un POI no cumple las restricciones, se prueba el siguiente candidato.
+
+
+11.4. Construye la ruta final
+
+Para cada POI aceptado se guardan:
+
+- route_position
+- distance_from_previous_km
+- distance_accumulated_km
+- time_accumulated_min
+- route_utility
+
+Resultado:
+
+route_df
+route_summary
+
+
+12. Python prepara la respuesta JSON
+-----------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funciones:
+
+row_to_poi(...)
+build_notes(...)
+run_recommendation(...)
+
+Que ocurre aqui:
+
+- Convierte filas pandas en objetos JSON compatibles con React.
+- Cambia nombres internos snake_case a nombres camelCase.
+- Prepara:
+
+  - preferences
+  - candidates
+  - route
+  - summary
+  - meta
+
+Ejemplo de meta:
+
+{
+  "mode": "python-hybrid-recommender",
+  "dataset": "pois_barcelona_hibrido.parquet",
+  "methodology": "tfidf_quality_proximity_cluster_greedy"
+}
+
+Siguiente paso:
+
+main() imprime el JSON por stdout.
+
+
+13. Node.js recibe la respuesta de Python
+----------------------------------------
+
+Archivo:
+
+project-root/backend/src/services/recommendationService.js
+
+Funcion:
+
+runHybridRecommender(preferences)
+
+Que ocurre aqui:
+
+- Node acumula stdout del proceso Python.
+- Parsea el JSON.
+- Si Python devuelve error, Node lo transforma en error HTTP.
+- Si todo va bien, Node anade generatedAt al summary.
+- Devuelve el resultado al controlador.
+
+Siguiente paso:
+
+recommendationController.js devuelve res.json(result).
+
+
+14. El frontend recibe la ruta
+-----------------------------
+
+Archivo:
+
+project-root/frontend/src/App.jsx
+
+Funcion:
+
+handleSubmit(preferences)
+
+Que ocurre aqui:
+
+- Recibe la respuesta del backend.
+- Si hay POIs en la ruta, construye waypoints:
+
+  punto inicial + POIs recomendados
+
+- Intenta calcular una ruta peatonal real usando OSRM:
+
+  fetchStreetRoute(waypoints)
+
+Esta funcion esta en:
+
+project-root/frontend/src/services/api.js
+
+
+15. Calculo visual de ruta peatonal
+----------------------------------
+
+Archivo:
+
+project-root/frontend/src/services/api.js
+
+Funcion:
+
+fetchStreetRoute(waypoints)
+
+Que ocurre aqui:
+
+- Llama a OSRM:
+
+  https://router.project-osrm.org/route/v1/foot/...
+
+- Recupera:
+
+  - geometria de la ruta
+  - distancia caminando
+  - tiempo estimado caminando
+
+Importante:
+
+El modelo hibrido decide que POIs visitar y en que orden. OSRM solo calcula el
+trazado visual peatonal entre esos puntos.
+
+
+16. La ruta se muestra en la interfaz
+------------------------------------
+
+Archivos:
+
+project-root/frontend/src/components/RouteMap.jsx
+project-root/frontend/src/components/ResultsSidebar.jsx
+project-root/frontend/src/components/PoiDetailPanel.jsx
+
+Que ocurre aqui:
+
+RouteMap.jsx:
+
+- pinta el punto inicial
+- pinta los POIs numerados
+- pinta la linea de ruta
+- ajusta el mapa a los puntos
+
+ResultsSidebar.jsx:
+
+- muestra resumen de la ruta
+- muestra distancia total
+- muestra tiempo de visita
+- muestra secuencia de POIs
+- muestra notas metodologicas
+
+PoiDetailPanel.jsx:
+
+- muestra detalle del POI seleccionado
+
+
+17. Resumen del flujo completo
+------------------------------
+
+Flujo compacto:
+
+PreferenceForm.jsx
+  -> App.jsx
+  -> frontend/src/services/api.js
+  -> POST /api/recommend-route
+  -> backend/src/routes/index.js
+  -> backend/src/controllers/recommendationController.js
+  -> backend/src/services/recommendationService.js
+  -> ml_service/recommend_route.py
+  -> data/pois_barcelona_hibrido.parquet
+  -> ml_service/recommend_route.py
+  -> backend/src/services/recommendationService.js
+  -> frontend/src/App.jsx
+  -> RouteMap.jsx + ResultsSidebar.jsx + PoiDetailPanel.jsx
+
+
+18. Que parte es modelo y que parte es web
+-----------------------------------------
+
+Modelo hibrido:
+
+- ml_service/recommend_route.py
+- data/pois_barcelona_hibrido.parquet
+- src/build_hybrid_dataset.py
+- modelo/06_Hybrid_Recommender_Route_System.ipynb
+
+Backend/API:
+
+- project-root/backend/src/routes/index.js
+- project-root/backend/src/controllers/recommendationController.js
+- project-root/backend/src/services/recommendationService.js
+- project-root/backend/src/config/env.js
+
+Frontend:
+
+- project-root/frontend/src/App.jsx
+- project-root/frontend/src/components/PreferenceForm.jsx
+- project-root/frontend/src/components/RouteMap.jsx
+- project-root/frontend/src/components/ResultsSidebar.jsx
+- project-root/frontend/src/services/api.js
+
+
+19. Idea clave para explicar en el TFM
+-------------------------------------
+
+El notebook 06 fue la fase experimental del sistema hibrido.
+
+La integracion web no ejecuta el notebook. En su lugar, la logica validada del
+notebook se transforma en un motor Python productivo:
+
+ml_service/recommend_route.py
+
+El backend Node.js mantiene la API web y actua como puente hacia ese motor.
+
+El frontend React no necesita conocer los detalles del modelo: solo envia
+preferencias y recibe una ruta recomendada lista para visualizar.
