@@ -1,0 +1,342 @@
+APIS UTILIZADAS EN EL PROYECTO
+==============================
+
+Este documento resume las APIs que intervienen en la aplicacion web del sistema
+de recomendacion de rutas de POIs en Barcelona.
+
+La idea principal es separar tres niveles:
+
+1. API propia del backend
+2. Comunicacion interna entre Node.js y el modelo Python
+3. API externa para calcular el trazado peatonal
+
+
+1. API propia del backend
+-------------------------
+
+La API principal del proyecto esta implementada en:
+
+project-root/backend
+
+Tecnologia:
+
+- Node.js
+- Express
+
+URL base en desarrollo:
+
+http://localhost:4000/api
+
+Esta API es la que consume el frontend React. El frontend no accede
+directamente al modelo Python ni al dataset, sino que siempre se comunica con
+el backend.
+
+
+1.1. GET /api/health
+--------------------
+
+Archivo relacionado:
+
+project-root/backend/src/controllers/healthController.js
+
+Uso:
+
+Comprobar que el backend esta funcionando.
+
+Ejemplo:
+
+http://localhost:4000/api/health
+
+Sirve sobre todo para verificar rapidamente que el servidor Express esta activo.
+
+
+1.2. GET /api/pois
+------------------
+
+Archivos relacionados:
+
+project-root/backend/src/controllers/poiController.js
+project-root/backend/src/services/poiDataService.js
+
+Uso:
+
+Devuelve POIs del dataset cargado por el backend.
+
+Puede usarse para consultar el catalogo general o para aplicar filtros basicos.
+
+El backend carga por defecto:
+
+data/pois_barcelona_hibrido.csv
+
+Este endpoint es auxiliar. No es el que genera la ruta final, pero permite
+consultar informacion de POIs.
+
+
+1.3. GET /api/categories
+------------------------
+
+Archivos relacionados:
+
+project-root/backend/src/controllers/poiController.js
+project-root/backend/src/services/poiDataService.js
+
+Uso:
+
+Devuelve el arbol de categorias y subcategorias disponibles en el dataset.
+
+El frontend lo usa para rellenar los selectores del formulario de preferencias.
+
+Flujo:
+
+Frontend
+  -> GET /api/categories
+  -> Backend lee categorias del dataset
+  -> Frontend muestra opciones al usuario
+
+
+1.4. POST /api/recommend-route
+------------------------------
+
+Archivos relacionados:
+
+project-root/backend/src/routes/index.js
+project-root/backend/src/controllers/recommendationController.js
+project-root/backend/src/services/recommendationService.js
+ml_service/recommend_route.py
+
+Uso:
+
+Es el endpoint principal del sistema.
+
+Recibe las preferencias del usuario y devuelve una ruta recomendada.
+
+Ejemplo de payload:
+
+{
+  "startLocation": {
+    "lat": 41.4035,
+    "lng": 2.17437
+  },
+  "categories": ["religious"],
+  "subcategories": ["cathedral"],
+  "maxDistanceKm": 5,
+  "maxPois": 5,
+  "availableTimeMinutes": 240,
+  "minRating": 4
+}
+
+Respuesta principal:
+
+{
+  "preferences": { ... },
+  "candidates": [ ... ],
+  "route": [ ... ],
+  "summary": { ... },
+  "meta": { ... }
+}
+
+Campos importantes:
+
+- candidates:
+  POIs candidatos considerados por el modelo hibrido.
+
+- route:
+  POIs finales ordenados como ruta.
+
+- summary:
+  resumen de la ruta, incluyendo numero de POIs, distancia, tiempo y scores.
+
+- meta:
+  informacion metodologica. Debe aparecer:
+
+  mode: python-hybrid-recommender
+  dataset: pois_barcelona_hibrido.parquet
+
+
+2. Comunicacion interna Node.js -> Python
+----------------------------------------
+
+Esta parte no es una API HTTP publica, pero es una comunicacion interna clave
+del sistema.
+
+Archivos:
+
+project-root/backend/src/services/recommendationService.js
+ml_service/recommend_route.py
+
+Tecnica utilizada:
+
+Node.js ejecuta el script Python usando:
+
+child_process.spawn
+
+El backend manda las preferencias del usuario al proceso Python por stdin en
+formato JSON.
+
+Python procesa la recomendacion y devuelve otro JSON por stdout.
+
+Flujo:
+
+Backend Node.js
+  -> lanza ml_service/recommend_route.py
+  -> envia preferencias por stdin
+  -> Python carga el dataset hibrido
+  -> Python calcula candidatos y ruta
+  -> Python imprime JSON por stdout
+  -> Node.js parsea la respuesta
+  -> Node.js responde al frontend
+
+
+2.1. Por que se hace asi
+------------------------
+
+El backend web esta hecho en Node.js, pero la logica de machine learning y data
+science esta hecha en Python.
+
+Python es mas adecuado para esta parte porque el modelo usa:
+
+- pandas
+- scikit-learn
+- TF-IDF
+- cosine similarity
+- lectura de parquet
+
+En lugar de reescribir toda la logica del modelo en JavaScript, se mantiene el
+modelo en Python y Node.js actua como puente entre la web y el sistema hibrido.
+
+
+2.2. Funcion principal del motor Python
+--------------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion principal:
+
+run_recommendation(payload)
+
+Esta funcion:
+
+1. recibe las preferencias del usuario
+2. carga data/pois_barcelona_hibrido.parquet
+3. calcula TF-IDF sobre content_base
+4. selecciona candidatos hibridos
+5. construye la ruta greedy
+6. prepara la respuesta JSON para el frontend
+
+
+3. API externa OSRM
+-------------------
+
+Ademas de la API propia del proyecto, se usa una API externa para calcular la
+ruta peatonal visual entre los POIs seleccionados.
+
+API:
+
+OSRM - Open Source Routing Machine
+
+URL usada:
+
+https://router.project-osrm.org/route/v1/foot/
+
+Archivo relacionado:
+
+project-root/frontend/src/services/api.js
+
+Funcion:
+
+fetchStreetRoute(waypoints)
+
+
+3.1. Para que se usa OSRM
+------------------------
+
+OSRM se usa para calcular:
+
+- trazado real caminando por calles
+- distancia caminando
+- tiempo estimado de desplazamiento
+- geometria GeoJSON/Polyline para pintar la ruta en el mapa
+
+
+3.2. Que NO hace OSRM
+--------------------
+
+OSRM no recomienda POIs.
+
+OSRM no decide el orden de la ruta.
+
+OSRM no aplica el modelo hibrido.
+
+El modelo hibrido decide:
+
+- que POIs visitar
+- en que orden visitarlos
+
+OSRM solo calcula:
+
+- como caminar entre esos puntos
+
+Esta separacion es importante para explicar la arquitectura.
+
+
+4. Relacion entre las APIs
+--------------------------
+
+Flujo completo:
+
+Usuario en la web
+  -> Frontend React
+  -> API propia: POST /api/recommend-route
+  -> Backend Node.js
+  -> Comunicacion interna Node.js -> Python
+  -> Modelo hibrido en ml_service/recommend_route.py
+  -> Dataset pois_barcelona_hibrido.parquet
+  -> Backend devuelve ruta al frontend
+  -> Frontend llama a OSRM para trazado peatonal
+  -> Frontend pinta mapa y resultados
+
+
+5. Resumen para presentacion
+----------------------------
+
+En el proyecto se utilizan tres capas de API/comunicacion:
+
+1. API REST propia con Express
+
+   Es la interfaz entre frontend y backend. Expone endpoints como:
+
+   - /api/health
+   - /api/pois
+   - /api/categories
+   - /api/recommend-route
+
+2. Comunicacion interna Node.js -> Python
+
+   Permite que el backend web use el sistema de recomendacion hibrido
+   implementado en Python sin tener que reescribir el modelo en JavaScript.
+
+3. API externa OSRM
+
+   Calcula el trazado peatonal real entre los POIs ya seleccionados por el
+   modelo. Se usa para mejorar la visualizacion y las metricas de distancia y
+   tiempo de desplazamiento.
+
+
+6. Idea clave
+-------------
+
+El recomendador hibrido es el que decide la ruta.
+
+La API propia permite consumir esa ruta desde la web.
+
+OSRM solo ayuda a representar la ruta sobre calles reales.
+
+Por tanto, el valor inteligente del sistema esta en:
+
+ml_service/recommend_route.py
+
+y se expone a la aplicacion mediante:
+
+POST /api/recommend-route

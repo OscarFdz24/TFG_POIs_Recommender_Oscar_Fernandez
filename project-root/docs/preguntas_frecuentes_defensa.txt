@@ -1,0 +1,348 @@
+PREGUNTAS FRECUENTES PARA LA DEFENSA DEL PROYECTO
+=================================================
+
+Este documento recoge posibles preguntas que podrian surgir durante la defensa
+del proyecto y respuestas breves para explicarlas de forma clara.
+
+
+1. Cual es el objetivo principal del proyecto?
+---------------------------------------------
+
+El objetivo es construir un sistema inteligente que recomiende rutas de puntos
+de interes en Barcelona, no solo POIs individuales.
+
+El sistema tiene en cuenta:
+
+- intereses del usuario
+- calidad o relevancia de los POIs
+- proximidad geografica
+- restricciones de distancia y tiempo
+- coherencia espacial de la ruta
+
+
+2. Por que recomendar rutas y no solo POIs?
+------------------------------------------
+
+Recomendar POIs sueltos no garantiza que el resultado sea util para una visita
+real. Una lista puede contener lugares interesantes pero muy alejados entre si o
+imposibles de visitar en el tiempo disponible.
+
+Por eso el proyecto separa dos problemas:
+
+1. seleccionar buenos candidatos
+2. construir una ruta viable con esos candidatos
+
+
+3. Por que el sistema se considera hibrido?
+------------------------------------------
+
+Porque combina varias fuentes de informacion:
+
+- contenido textual mediante TF-IDF
+- calidad del POI mediante score, rating y match_confidence
+- proximidad geografica
+- cluster_geo para coherencia espacial
+- restricciones introducidas por el usuario
+
+No depende de una unica senal.
+
+
+4. Que aporta TF-IDF al sistema?
+--------------------------------
+
+TF-IDF permite medir similitud tematica entre las preferencias del usuario y la
+descripcion de los POIs.
+
+Cada POI tiene una columna content_base que combina informacion como nombre,
+categoria, subcategoria, descripcion y etiquetas. TF-IDF convierte ese texto en
+vectores numericos y permite calcular similarity_score.
+
+
+5. Por que usar TF-IDF y no embeddings?
+---------------------------------------
+
+TF-IDF es una tecnica interpretable, ligera y suficiente para una primera
+version funcional del sistema.
+
+Para este TFM tiene varias ventajas:
+
+- es facil de explicar
+- no requiere modelos externos pesados
+- funciona bien con textos cortos y categorias
+- permite trazabilidad entre palabras y similitud
+
+Como mejora futura se podrian probar embeddings semanticos, pero no eran
+imprescindibles para demostrar el sistema hibrido.
+
+
+6. Que es quality_signal?
+------------------------
+
+quality_signal es una senal estatica de calidad del POI.
+
+Combina:
+
+- score
+- rating
+- match_confidence
+
+La idea es no recomendar solo por similitud textual. Un POI puede ser
+tematicamente parecido, pero si tiene baja calidad o poca confianza, no deberia
+estar necesariamente arriba.
+
+
+7. Que aporta cluster_geo?
+--------------------------
+
+cluster_geo agrupa los POIs por zonas geograficas usando clustering.
+
+En la construccion de la ruta sirve para favorecer POIs cercanos o
+espacialmente coherentes. Esto ayuda a evitar rutas dispersas y poco practicas.
+
+No obliga a quedarse siempre en el mismo cluster, pero puede dar un bonus a los
+POIs que mantienen coherencia geografica.
+
+
+8. Por que se usa una heuristica greedy para construir la ruta?
+--------------------------------------------------------------
+
+Porque el objetivo era tener una ruta viable, interpretable y facil de integrar
+en la web.
+
+Una optimizacion exacta tipo TSP con multiples restricciones puede ser mas
+compleja y costosa. Para este proyecto, una heuristica greedy es adecuada
+porque:
+
+- es rapida
+- es facil de explicar
+- permite aplicar restricciones paso a paso
+- genera resultados razonables
+- encaja bien con una aplicacion interactiva
+
+
+9. Que restricciones tiene la ruta?
+----------------------------------
+
+La ruta controla principalmente:
+
+- numero maximo de POIs
+- distancia maxima total
+- tiempo maximo disponible
+- distancia maxima entre tramos
+- retorno al punto inicial
+
+Esto hace que la recomendacion sea mas realista para el usuario.
+
+
+10. Que pasa si no hay suficientes POIs que cumplan las restricciones?
+---------------------------------------------------------------------
+
+El sistema devuelve una ruta mas corta.
+
+Por ejemplo, si el usuario pide 6 POIs pero solo 3 cumplen las condiciones de
+categoria, distancia, rating y tiempo, se devuelven esos 3.
+
+La respuesta incluye notas en meta.notes indicando que no todos los POIs
+solicitados han podido incluirse.
+
+
+11. Como se conecta el modelo con la web?
+----------------------------------------
+
+El modelo no se conecta directamente desde el notebook.
+
+Primero se valido la logica en el notebook:
+
+modelo/06_Hybrid_Recommender_Route_System.ipynb
+
+Despues esa logica se paso a un script Python productivo:
+
+ml_service/recommend_route.py
+
+La web llama al backend Node.js y Node.js ejecuta ese script Python.
+
+Flujo:
+
+React
+  -> Node.js
+  -> Python
+  -> dataset hibrido
+  -> Node.js
+  -> React
+
+
+12. Por que se mantiene Node.js si el modelo esta en Python?
+-----------------------------------------------------------
+
+Node.js se usa como backend web porque encaja bien con React y Express.
+
+Python se usa para la parte de machine learning porque el ecosistema de datos
+es mas adecuado:
+
+- pandas
+- scikit-learn
+- TF-IDF
+- parquet
+
+La arquitectura separa responsabilidades: Node gestiona la API web y Python
+gestiona el modelo.
+
+
+13. Que endpoint usa el frontend para pedir una ruta?
+----------------------------------------------------
+
+El endpoint principal es:
+
+POST /api/recommend-route
+
+El frontend envia preferencias del usuario y recibe candidatos, ruta final,
+resumen y metadatos.
+
+
+14. Que dataset usa el sistema final?
+-------------------------------------
+
+Usa:
+
+data/pois_barcelona_hibrido.parquet
+
+Ese dataset ya contiene variables preparadas para el modelo hibrido:
+
+- content_base
+- quality_signal
+- cluster_geo
+- rating_filled
+- visit_duration_filled
+- variables normalizadas
+
+
+15. Se genera el dataset hibrido en cada peticion?
+-------------------------------------------------
+
+No.
+
+El dataset hibrido se genera offline con:
+
+src/build_hybrid_dataset.py
+
+Despues el backend simplemente lo carga para recomendar. Solo hace falta
+regenerarlo si cambian los datos base o la logica de enriquecimiento.
+
+
+16. Que papel tiene OSRM?
+-------------------------
+
+OSRM se usa para calcular el trazado peatonal real entre los POIs de la ruta.
+
+No recomienda POIs y no decide el orden.
+
+El modelo hibrido decide:
+
+- que POIs visitar
+- en que orden
+
+OSRM calcula:
+
+- distancia caminando
+- tiempo estimado caminando
+- geometria para pintar la ruta en el mapa
+
+
+17. Como se evalua si una ruta es buena?
+----------------------------------------
+
+La evaluacion se puede observar con varias metricas:
+
+- numero de POIs incluidos
+- distancia total
+- tiempo total
+- score medio de candidatos
+- similitud media
+- cumplimiento de restricciones
+- coherencia geografica
+
+Tambien se puede comparar contra versiones anteriores:
+
+- baseline simple
+- recomendador por contenido
+- ruta greedy basica
+- sistema hibrido final
+
+
+18. Que diferencia hay entre ranking y ruta?
+-------------------------------------------
+
+El ranking ordena POIs por relevancia individual.
+
+La ruta tiene que decidir un orden visitable y cumplir restricciones de tiempo y
+distancia.
+
+Un POI puede ser muy relevante individualmente, pero no entrar en la ruta si
+queda demasiado lejos o rompe las restricciones.
+
+
+19. Que limitaciones tiene el sistema actual?
+--------------------------------------------
+
+Algunas limitaciones son:
+
+- TF-IDF no capta sinonimos tan bien como modelos semanticos avanzados
+- la ruta greedy no garantiza optimo global
+- la calidad depende de la informacion disponible en el dataset
+- no se consideran horarios reales en profundidad
+- no se modela todavia el perfil historico del usuario
+- el motor Python recalcula TF-IDF en cada peticion
+
+
+20. Que mejoras se podrian hacer en el futuro?
+----------------------------------------------
+
+Posibles mejoras:
+
+- anadir campo de texto libre en la web
+- usar embeddings semanticos
+- cachear o precalcular la matriz TF-IDF
+- convertir el motor Python en una API FastAPI persistente
+- mejorar explicabilidad de cada recomendacion
+- incorporar horarios de apertura de forma mas estricta
+- introducir perfiles de usuario
+- comparar varias estrategias de optimizacion de rutas
+
+
+21. Por que no se usa directamente el notebook en produccion?
+------------------------------------------------------------
+
+Porque un notebook es adecuado para explorar, probar y documentar, pero no para
+servir una aplicacion web.
+
+Para integrarlo con la web, la logica del notebook se convierte en codigo
+Python modular y ejecutable:
+
+ml_service/recommend_route.py
+
+Asi el sistema es mas reproducible, mantenible y facil de llamar desde el
+backend.
+
+
+22. Como explicaria el proyecto en una frase?
+---------------------------------------------
+
+Es un sistema hibrido de recomendacion que transforma preferencias de usuario
+en una ruta realista de POIs en Barcelona, combinando similitud textual,
+calidad, proximidad geografica y restricciones de visita dentro de una
+aplicacion web funcional.
+
+
+23. Que parte es mas importante defender?
+-----------------------------------------
+
+La idea mas importante es que el sistema no se limita a recomendar POIs
+individuales.
+
+El valor del proyecto esta en combinar:
+
+- seleccion inteligente de candidatos
+- construccion de ruta viable
+- integracion real en una aplicacion web
+
+Eso convierte el modelo en un sistema completo de recomendacion de rutas.
