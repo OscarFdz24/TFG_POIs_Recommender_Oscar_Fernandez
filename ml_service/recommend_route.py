@@ -40,13 +40,13 @@ DEFAULT_ROUTE_WEIGHTS = {
 }
 
 CLUSTER_ZONE_LABELS = {
-    0: "Horta-Guinardo / Vall Hebron",
-    1: "Ciutat Vella / Gotic / Born",
-    2: "Les Corts / Sarria / Collserola",
-    3: "Eixample / Gracia",
-    4: "Nou Barris / Sant Andreu",
-    5: "Montjuic / Sants",
-    6: "Poblenou / Sant Marti",
+    0: "Norte verde y miradores",
+    1: "Centro historico",
+    2: "Oeste y zona alta",
+    3: "Eixample y Gracia",
+    4: "Norte urbano",
+    5: "Montjuic y sur",
+    6: "Este litoral y Poblenou",
 }
 
 
