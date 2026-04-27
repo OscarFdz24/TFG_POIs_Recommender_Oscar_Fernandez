@@ -1,0 +1,473 @@
+USO DE MACHINE LEARNING EN EL SISTEMA DE RECOMENDACION
+======================================================
+
+Este documento explica como se utiliza Machine Learning en el proyecto y como
+actua dentro del motor Python del recomendador hibrido.
+
+La idea principal es que el proyecto no usa un unico modelo supervisado que
+predice una etiqueta. Es un sistema de recomendacion hibrido que combina
+tecnicas de ML, senales de calidad, distancia geografica y una heuristica de
+construccion de rutas.
+
+
+1. Donde esta el ML en el proyecto
+----------------------------------
+
+La logica final integrada esta en:
+
+ml_service/recommend_route.py
+
+Esta logica viene del notebook:
+
+modelo/06_Hybrid_Recommender_Route_System.ipynb
+
+El dataset que usa el motor es:
+
+data/pois_barcelona_hibrido.parquet
+
+Ese dataset fue generado previamente con:
+
+src/build_hybrid_dataset.py
+
+
+2. Que tecnicas de ML se utilizan
+---------------------------------
+
+El proyecto utiliza principalmente:
+
+1. TF-IDF
+2. Similitud coseno
+3. Clustering geografico con K-Means
+4. Scoring hibrido de candidatos
+5. Heuristica greedy para construir la ruta
+
+Las tres primeras partes son las mas claramente asociadas a Machine Learning.
+El scoring hibrido y el greedy combinan ML con reglas de negocio y restricciones.
+
+
+3. TF-IDF: convertir texto en numeros
+-------------------------------------
+
+TF-IDF se usa para transformar el texto de cada POI en un vector numerico.
+
+En el motor Python aparece en:
+
+ml_service/recommend_route.py
+
+Dentro de la funcion:
+
+run_recommendation(payload)
+
+Codigo logico:
+
+vectorizer = TfidfVectorizer(max_features=5000, ngram_range=(1, 2))
+tfidf_matrix = vectorizer.fit_transform(df["content_base"])
+
+La columna usada es:
+
+content_base
+
+Esta columna contiene texto consolidado del POI:
+
+- nombre
+- categoria
+- subcategoria
+- descripcion
+- tags
+
+Ejemplo conceptual:
+
+"sagrada familia religious cathedral minor basilica historic religious"
+
+TF-IDF convierte ese texto en una representacion numerica. Asi el sistema puede
+comparar POIs y preferencias de usuario de forma matematica.
+
+
+4. Que aporta TF-IDF
+--------------------
+
+TF-IDF permite detectar que POIs son tematicamente parecidos a lo que el usuario
+esta buscando.
+
+Por ejemplo, si el usuario filtra o busca algo relacionado con:
+
+- museum
+- cathedral
+- park
+- architecture
+- historic
+
+el sistema puede encontrar POIs cuyo texto tenga relacion con esos terminos.
+
+TF-IDF no entiende el lenguaje como un modelo generativo o embeddings modernos,
+pero es interpretable, ligero y adecuado para una primera version del sistema.
+
+
+5. Similitud coseno
+-------------------
+
+Una vez que los POIs estan representados como vectores TF-IDF, se calcula la
+similitud coseno.
+
+Funcion relacionada:
+
+calculate_similarity(...)
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Codigo logico:
+
+cosine_similarity(query_vector, tfidf_matrix)
+
+La similitud coseno mide cuanto se parecen dos vectores.
+
+En este proyecto se usa para calcular:
+
+similarity_score
+
+Este score indica cuanto se parece cada POI a las preferencias textuales del
+usuario.
+
+
+6. Como se construye la consulta textual del usuario
+---------------------------------------------------
+
+Funcion:
+
+build_query_text(preferences)
+
+Archivo:
+
+ml_service/recommend_route.py
+
+La consulta textual se construye combinando:
+
+- queryText si existe
+- categorias seleccionadas
+- subcategorias seleccionadas
+
+Ejemplo:
+
+Si el usuario selecciona:
+
+categories = ["religious"]
+subcategories = ["cathedral"]
+
+la consulta textual sera parecida a:
+
+"religious cathedral"
+
+Esa consulta se transforma tambien con TF-IDF y se compara contra todos los POIs.
+
+
+7. K-Means y cluster_geo
+------------------------
+
+El clustering geografico se calcula previamente en:
+
+src/build_hybrid_dataset.py
+
+Se usa K-Means sobre coordenadas:
+
+- latitude
+- longitude
+
+El resultado se guarda en el dataset como:
+
+cluster_geo
+
+cluster_geo representa zonas geograficas de Barcelona.
+
+No se calcula en cada recomendacion. Ya viene preparado en:
+
+data/pois_barcelona_hibrido.parquet
+
+
+8. Para que sirve cluster_geo
+-----------------------------
+
+cluster_geo ayuda a construir rutas mas coherentes geograficamente.
+
+Durante la construccion de la ruta, si el siguiente POI pertenece al mismo
+cluster que el POI actual, puede recibir un pequeno bonus.
+
+Esto ayuda a evitar rutas demasiado dispersas.
+
+Importante:
+
+cluster_geo no decide solo la ruta. Es una senal mas dentro del sistema.
+
+
+9. quality_signal
+-----------------
+
+quality_signal no es ML por si solo, pero es una senal muy importante del
+sistema hibrido.
+
+Se calcula en:
+
+src/build_hybrid_dataset.py
+
+Combina:
+
+- score
+- rating
+- match_confidence
+
+La idea es medir la calidad o relevancia general del POI.
+
+Asi el sistema no recomienda solo por similitud textual, sino tambien por
+calidad.
+
+
+10. Primera capa: seleccion de candidatos
+-----------------------------------------
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion:
+
+build_hybrid_candidates(...)
+
+Esta es la primera gran fase del recomendador.
+
+Pasos:
+
+1. Copia el dataset de POIs.
+2. Calcula similarity_score con TF-IDF y similitud coseno.
+3. Filtra por categorias y subcategorias.
+4. Filtra por rating minimo.
+5. Calcula distancia desde el punto inicial.
+6. Filtra por distancia maxima.
+7. Normaliza las senales.
+8. Calcula hybrid_candidate_score.
+9. Selecciona los mejores candidatos.
+
+
+11. hybrid_candidate_score
+--------------------------
+
+hybrid_candidate_score es el score principal de la fase de candidatos.
+
+Combina tres senales:
+
+- quality_norm
+- similarity_norm
+- start_proximity_norm
+
+Formula:
+
+hybrid_candidate_score =
+  0.45 * quality_norm +
+  0.35 * similarity_norm +
+  0.20 * start_proximity_norm
+
+Interpretacion:
+
+- 45% calidad del POI
+- 35% similitud tematica
+- 20% cercania al punto inicial
+
+Esto convierte al sistema en hibrido porque no depende de una unica variable.
+
+
+12. Segunda capa: construccion de la ruta
+-----------------------------------------
+
+Despues de seleccionar candidatos, el sistema construye una ruta.
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Funcion:
+
+build_hybrid_route(candidates, preferences)
+
+Esta parte no es ML puro. Es una heuristica greedy que usa los scores generados
+por el sistema hibrido.
+
+El objetivo es ordenar los POIs de forma visitable y respetando restricciones.
+
+
+13. Como funciona el greedy
+---------------------------
+
+El algoritmo empieza en el punto inicial del usuario.
+
+En cada paso:
+
+1. Mira los candidatos restantes.
+2. Calcula una utilidad para cada posible siguiente POI.
+3. Comprueba si cumple las restricciones.
+4. Elige el mejor candidato viable.
+5. Lo anade a la ruta.
+6. Actualiza la posicion actual.
+7. Repite hasta llegar al maximo de POIs o quedarse sin opciones.
+
+
+14. route_utility
+-----------------
+
+La utilidad de ruta se calcula en:
+
+score_next_pois(...)
+
+Formula:
+
+route_utility =
+  0.55 * candidate_norm +
+  0.30 * proximity_norm +
+  0.10 * cluster_bonus -
+  0.05 * duration_penalty
+
+Interpretacion:
+
+- candidate_norm:
+  calidad global del candidato segun el sistema hibrido
+
+- proximity_norm:
+  cercania al punto actual de la ruta
+
+- cluster_bonus:
+  bonus si mantiene coherencia geografica con el cluster actual
+
+- duration_penalty:
+  pequena penalizacion a visitas demasiado largas
+
+
+15. Restricciones de la ruta
+----------------------------
+
+La ruta debe cumplir:
+
+- numero maximo de POIs
+- distancia maxima total
+- tiempo maximo disponible
+- distancia maxima por tramo
+- retorno al punto inicial incluido en el calculo
+
+Esto es lo que diferencia una simple lista de POIs de una ruta realmente
+visitable.
+
+
+16. Funcion principal del motor Python
+--------------------------------------
+
+La funcion que coordina todo es:
+
+run_recommendation(payload)
+
+Archivo:
+
+ml_service/recommend_route.py
+
+Esta funcion:
+
+1. recibe las preferencias desde Node.js
+2. valida que existe el dataset hibrido
+3. normaliza preferencias
+4. carga el parquet
+5. construye TF-IDF
+6. calcula candidatos hibridos
+7. construye la ruta
+8. convierte los resultados a JSON
+9. devuelve la respuesta al backend
+
+Por eso se puede decir que run_recommendation es la funcion orquestadora del
+motor de recomendacion.
+
+
+17. Como llega la peticion hasta el motor Python
+------------------------------------------------
+
+Flujo:
+
+Usuario en React
+  -> POST /api/recommend-route
+  -> Backend Node.js
+  -> recommendationService.js
+  -> ml_service/recommend_route.py
+  -> run_recommendation(payload)
+
+Node.js envia las preferencias a Python como JSON.
+
+Python devuelve otro JSON con:
+
+- candidates
+- route
+- summary
+- meta
+
+
+18. Que devuelve el modelo
+--------------------------
+
+El motor devuelve una respuesta como:
+
+{
+  "preferences": { ... },
+  "candidates": [ ... ],
+  "route": [ ... ],
+  "summary": { ... },
+  "meta": { ... }
+}
+
+route contiene los POIs finales ordenados.
+
+summary contiene metricas:
+
+- totalPois
+- totalDistanceKm
+- totalVisitMinutes
+- avgCandidateScore
+- avgSimilarityScore
+- candidatePool
+
+meta indica el metodo:
+
+mode: python-hybrid-recommender
+dataset: pois_barcelona_hibrido.parquet
+
+
+19. Que parte es ML y que parte es heuristica
+---------------------------------------------
+
+Parte ML / data science:
+
+- TF-IDF
+- similitud coseno
+- K-Means para cluster_geo
+- normalizacion de senales
+- scoring hibrido de candidatos
+
+Parte heuristica / optimizacion:
+
+- greedy para ordenar POIs
+- restricciones de distancia
+- restricciones de tiempo
+- control de tramo maximo
+
+El sistema completo combina ambas partes.
+
+
+20. Explicacion corta para defensa
+----------------------------------
+
+En mi proyecto uso Machine Learning para representar semanticamente los POIs
+mediante TF-IDF, calcular similitud con las preferencias del usuario y usar
+clustering geografico para mejorar la coherencia espacial. Despues combino esas
+senales con calidad y proximidad en un score hibrido, y finalmente construyo la
+ruta con una heuristica greedy que respeta restricciones de tiempo y distancia.
+
+
+21. Frase clave
+---------------
+
+El ML no se usa para predecir una clase, sino para transformar, comparar y
+puntuar POIs dentro de un sistema de recomendacion hibrido que finalmente
+genera una ruta viable para el usuario.
