@@ -10,7 +10,7 @@ export default function ResultsSidebar({
   t,
 }) {
   return (
-    <aside className="panel sidebar-panel">
+    <section className="panel results-panel">
       <div className="panel-header">
         <div>
           <p className="eyebrow">{t.results.eyebrow}</p>
@@ -21,7 +21,7 @@ export default function ResultsSidebar({
         </div>
       </div>
 
-      <div className="summary-grid">
+      <div className="summary-grid route-summary-grid">
         <div>
           <span>{t.results.distance}</span>
           <strong>{formatDistance(summary.totalDistanceKm)}</strong>
@@ -40,36 +40,6 @@ export default function ResultsSidebar({
         </div>
       </div>
 
-      {route.length > 0 && (
-        <div className="route-timeline">
-          <p className="timeline-title">{t.results.routeSequence}</p>
-          <div className="timeline-track">
-            <div className="timeline-stop start">
-              <span className="timeline-dot" />
-              <div>
-                <strong>{t.results.start}</strong>
-                <p>{t.results.startDescription}</p>
-              </div>
-            </div>
-
-            {route.map((poi) => (
-              <button
-                className={`timeline-stop ${selectedPoi?.id === poi.id ? "active" : ""}`}
-                key={`timeline-${poi.id}-${poi.routePosition}`}
-                onClick={() => onPoiSelect(poi)}
-                type="button"
-              >
-                <span className="timeline-dot">{poi.routePosition}</span>
-                <div>
-                  <strong>{poi.name}</strong>
-                  <p>{poi.category}</p>
-                </div>
-              </button>
-            ))}
-          </div>
-        </div>
-      )}
-
       {summary.totalPois < summary.requestedPois && (
         <p className="results-note">{t.results.fewerPois}</p>
       )}
@@ -84,31 +54,63 @@ export default function ResultsSidebar({
         </div>
       ) : null}
 
-      <div className="poi-list">
-        {route.map((poi) => (
-          <button
-            className={`poi-card ${selectedPoi?.id === poi.id ? "active" : ""}`}
-            key={`${poi.id}-${poi.routePosition}`}
-            onClick={() => onPoiSelect(poi)}
-            type="button"
-          >
-            <div className="poi-card-top">
-              <span className="poi-index">{poi.routePosition}</span>
-              <div>
-                <h3>{poi.name}</h3>
-                <p>{poi.category} · {poi.subcategory}</p>
-              </div>
-            </div>
-            <p className="poi-description">{poi.description}</p>
-            <div className="poi-metrics">
-              <span>{t.results.rating} {formatScore(poi.rating)}</span>
-              <span>{t.results.score} {formatScore(poi.score)}</span>
-              <span>{t.results.fromStart} {formatDistance(poi.distanceFromStartKm)}</span>
-              <span>{t.results.visit} {formatDuration(poi.visitDuration)}</span>
-            </div>
-          </button>
-        ))}
-      </div>
-    </aside>
+      {route.length > 0 && (
+        <div className="route-accordion">
+          {route.map((poi) => {
+            const isSelected = selectedPoi?.id === poi.id;
+
+            return (
+              <article
+                className={`poi-accordion-card ${isSelected ? "active" : ""}`}
+                key={`${poi.id}-${poi.routePosition}`}
+              >
+                <button
+                  className="poi-accordion-summary"
+                  onClick={() => onPoiSelect(isSelected ? null : poi)}
+                  type="button"
+                >
+                  <span className="poi-index">{poi.routePosition}</span>
+                  <span className="poi-summary-main">
+                    <strong>{poi.name}</strong>
+                    <span>{poi.category} · {poi.subcategory}</span>
+                    <span>{poi.neighborhoodZone || t.common.notAvailable}</span>
+                  </span>
+                  <span className="poi-summary-metrics">
+                    <span>{t.results.rating} {formatScore(poi.rating)}</span>
+                    <span>{t.results.visit} {formatDuration(poi.visitDuration)}</span>
+                  </span>
+                  <span className="accordion-indicator">{isSelected ? "−" : "+"}</span>
+                </button>
+
+                {isSelected && (
+                  <div className="poi-accordion-detail">
+                    <p className="poi-description">{poi.description}</p>
+                    <div className="detail-grid">
+                      <div><span>{t.detail.route}</span><strong>{poi.routePosition}</strong></div>
+                      <div><span>{t.detail.category}</span><strong>{poi.category}</strong></div>
+                      <div><span>{t.detail.subcategory}</span><strong>{poi.subcategory}</strong></div>
+                      <div><span>{t.form.neighborhoodZones}</span><strong>{poi.neighborhoodZone || t.common.notAvailable}</strong></div>
+                      <div><span>{t.detail.rating}</span><strong>{formatScore(poi.rating)}</strong></div>
+                      <div><span>{t.detail.score}</span><strong>{formatScore(poi.score)}</strong></div>
+                      <div><span>{t.results.relevance}</span><strong>{formatScore(poi.hybridCandidateScore)}</strong></div>
+                      <div><span>{t.detail.visit}</span><strong>{formatDuration(poi.visitDuration)}</strong></div>
+                      <div><span>{t.detail.fromStart}</span><strong>{formatDistance(poi.distanceFromStartKm)}</strong></div>
+                      <div><span>{t.detail.fromPrevious}</span><strong>{formatDistance(poi.distanceFromPreviousKm)}</strong></div>
+                      <div><span>{t.detail.coordinates}</span><strong>{poi.latitude}, {poi.longitude}</strong></div>
+                      <div><span>{t.detail.cluster}</span><strong>{poi.clusterGeo ?? t.common.notAvailable}</strong></div>
+                      <div><span>{t.detail.confidence}</span><strong>{formatScore(poi.matchConfidence)}</strong></div>
+                    </div>
+                    <div className="tags-row">
+                      <span>{t.detail.tags}</span>
+                      <strong>{poi.tags || t.common.notAvailable}</strong>
+                    </div>
+                  </div>
+                )}
+              </article>
+            );
+          })}
+        </div>
+      )}
+    </section>
   );
 }

@@ -1,7 +1,7 @@
 import PreferenceForm from "../components/PreferenceForm.jsx";
 import ResultsSidebar from "../components/ResultsSidebar.jsx";
 import RouteMap from "../components/RouteMap.jsx";
-import PoiDetailPanel from "../components/PoiDetailPanel.jsx";
+import AppTopbar from "../components/AppTopbar.jsx";
 
 export default function HomePage({
   categories,
@@ -23,63 +23,22 @@ export default function HomePage({
   theme,
 }) {
   return (
-    <main className="app-shell">
+    <>
+      <AppTopbar
+        health={health}
+        language={language}
+        onLanguageChange={onLanguageChange}
+        onThemeChange={onThemeChange}
+        t={t}
+        theme={theme}
+      />
+
+      <main className="app-shell">
       <section className="hero">
         <div>
           <p className="eyebrow">{t.app.eyebrow}</p>
           <h1>{t.app.title}</h1>
           <p className="hero-copy">{t.app.subtitle}</p>
-        </div>
-
-        <div className="hero-actions">
-          <div className="toolbar-card">
-            <div className="toggle-group">
-              <span className="toggle-group-label">{t.controls.theme}</span>
-              <div className="segmented-control">
-                <button
-                  className={`segment-button ${theme === "dark" ? "active" : ""}`}
-                  onClick={() => onThemeChange("dark")}
-                  type="button"
-                >
-                  {t.controls.themeDark}
-                </button>
-                <button
-                  className={`segment-button ${theme === "light" ? "active" : ""}`}
-                  onClick={() => onThemeChange("light")}
-                  type="button"
-                >
-                  {t.controls.themeLight}
-                </button>
-              </div>
-            </div>
-
-            <div className="toggle-group">
-              <span className="toggle-group-label">{t.controls.language}</span>
-              <div className="segmented-control">
-                <button
-                  className={`segment-button ${language === "es" ? "active" : ""}`}
-                  onClick={() => onLanguageChange("es")}
-                  type="button"
-                >
-                  {t.controls.languageEs}
-                </button>
-                <button
-                  className={`segment-button ${language === "en" ? "active" : ""}`}
-                  onClick={() => onLanguageChange("en")}
-                  type="button"
-                >
-                  {t.controls.languageEn}
-                </button>
-              </div>
-            </div>
-          </div>
-
-          <div className="status-card">
-            <span>{t.app.backend}</span>
-            <strong>
-              {health?.status === "ok" ? t.app.backendActive : t.app.backendOffline}
-            </strong>
-          </div>
         </div>
       </section>
 
@@ -104,58 +63,56 @@ export default function HomePage({
               submitting={submitting}
               t={t}
             />
-
-            {routeData ? (
-              <section className="panel route-overview">
-                <div className="panel-header">
-                  <div>
-                    <p className="eyebrow">{t.overview.eyebrow}</p>
-                    <h2>{t.overview.title}</h2>
-                  </div>
-                </div>
-
-                <div className="overview-grid">
-                  <div className="overview-card">
-                    <span>{t.overview.generatedPois}</span>
-                    <strong>
-                      {routeData.summary.totalPois} / {routeData.summary.requestedPois}
-                    </strong>
-                  </div>
-                  <div className="overview-card">
-                    <span>{t.overview.routeDistance}</span>
-                    <strong>{routeData.summary.totalDistanceKm} km</strong>
-                  </div>
-                  <div className="overview-card">
-                    <span>{t.overview.visitTime}</span>
-                    <strong>{routeData.summary.totalVisitMinutes} min</strong>
-                  </div>
-                  <div className="overview-card">
-                    <span>{t.overview.travelTime}</span>
-                    <strong>
-                      {routeData.summary.totalTravelMinutes === null
-                        ? t.common.notAvailable
-                        : `${routeData.summary.totalTravelMinutes} min`}
-                    </strong>
-                  </div>
-                  <div className="overview-card">
-                    <span>{t.overview.totalTime}</span>
-                    <strong>{routeData.summary.totalExperienceMinutes} min</strong>
-                  </div>
-                  <div className="overview-card">
-                    <span>{t.overview.routeMode}</span>
-                    <strong>
-                      {routeDisplayMode === "walking"
-                        ? t.overview.routeModeWalking
-                        : t.overview.routeModeDirect}
-                    </strong>
-                  </div>
-                </div>
-              </section>
-            ) : null}
           </section>
 
           <section className="workspace-grid">
             <div className="workspace-main">
+              {routeData ? (
+                <section className="panel route-overview">
+                  <div className="route-overview-heading">
+                    <p className="eyebrow">{t.overview.eyebrow}</p>
+                    <h2>{t.overview.title}</h2>
+                  </div>
+
+                  <div className="overview-grid">
+                    <div className="overview-card">
+                      <span>{t.overview.generatedPois}</span>
+                      <strong>
+                        {routeData.summary.totalPois} / {routeData.summary.requestedPois}
+                      </strong>
+                    </div>
+                    <div className="overview-card">
+                      <span>{t.overview.routeDistance}</span>
+                      <strong>{routeData.summary.totalDistanceKm} km</strong>
+                    </div>
+                    <div className="overview-card">
+                      <span>{t.overview.visitTime}</span>
+                      <strong>{routeData.summary.totalVisitMinutes} min</strong>
+                    </div>
+                    <div className="overview-card">
+                      <span>{t.overview.travelTime}</span>
+                      <strong>
+                        {routeData.summary.totalTravelMinutes === null
+                          ? t.common.notAvailable
+                          : `${routeData.summary.totalTravelMinutes} min`}
+                      </strong>
+                    </div>
+                    <div className="overview-card">
+                      <span>{t.overview.totalTime}</span>
+                      <strong>{routeData.summary.totalExperienceMinutes} min</strong>
+                    </div>
+                    <div className="overview-card">
+                      <span>{t.overview.routeMode}</span>
+                      <strong>
+                        {routeDisplayMode === "walking"
+                          ? t.overview.routeModeWalking
+                          : t.overview.routeModeDirect}
+                      </strong>
+                    </div>
+                  </div>
+                </section>
+              ) : null}
+
               <RouteMap
                 onPoiSelect={onPoiSelect}
                 onRouteDisplayModeChange={onRouteDisplayModeChange}
@@ -167,10 +124,6 @@ export default function HomePage({
                 t={t}
                 theme={theme}
               />
-              <PoiDetailPanel poi={selectedPoi} t={t} />
-            </div>
-
-            <div className="workspace-side">
               {routeData ? (
                 <ResultsSidebar
                   meta={routeData.meta}
@@ -191,6 +144,7 @@ export default function HomePage({
           </section>
         </>
       )}
-    </main>
+      </main>
+    </>
   );
 }

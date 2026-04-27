@@ -15,7 +15,7 @@ export function formatDuration(value) {
 }
 
 export function formatScore(value) {
-  if (value === null || value === undefined) {
+  if (value === null || value === undefined || Number.isNaN(Number(value))) {
     return "N/A";
   }
 

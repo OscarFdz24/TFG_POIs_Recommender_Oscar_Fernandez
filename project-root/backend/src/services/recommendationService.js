@@ -282,10 +282,17 @@ function runHybridRecommender(preferences) {
       if (code !== 0 || payload.error) {
         // Si Python sale con codigo != 0 o devuelve { error }, lo convertimos
         // en error HTTP para que Express responda correctamente.
+        const errorMessage = payload.error?.message || stderr || "Hybrid recommender failed.";
         const recommenderError = new Error(
-          payload.error?.message || stderr || "Hybrid recommender failed.",
+          errorMessage,
         );
-        recommenderError.statusCode = payload.error?.message === "Invalid start location." ? 400 : 500;
+        recommenderError.statusCode = [
+          "Invalid start location.",
+          "MIN_POIS_GREATER_THAN_MAX_POIS",
+          "MIN_POIS_NOT_REACHED",
+        ].includes(errorMessage)
+          ? 400
+          : 500;
         recommenderError.details = {
           code,
           stderr,

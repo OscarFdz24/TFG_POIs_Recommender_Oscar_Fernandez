@@ -21,6 +21,7 @@ export default function PoiDetailPanel({ poi, t }) {
             <div><span>{t.detail.subcategory}</span><strong>{poi.subcategory}</strong></div>
             <div><span>{t.detail.rating}</span><strong>{formatScore(poi.rating)}</strong></div>
             <div><span>{t.detail.score}</span><strong>{formatScore(poi.score)}</strong></div>
+            <div><span>{t.results.relevance}</span><strong>{formatScore(poi.hybridCandidateScore)}</strong></div>
             <div><span>{t.detail.visit}</span><strong>{formatDuration(poi.visitDuration)}</strong></div>
             <div><span>{t.detail.fromStart}</span><strong>{formatDistance(poi.distanceFromStartKm)}</strong></div>
             <div><span>{t.detail.fromPrevious}</span><strong>{formatDistance(poi.distanceFromPreviousKm)}</strong></div>

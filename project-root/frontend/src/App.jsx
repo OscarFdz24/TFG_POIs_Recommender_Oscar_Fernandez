@@ -13,6 +13,26 @@ const DEFAULT_START = {
   lng: 2.1686,
 };
 
+function getFriendlyErrorMessage(message, t) {
+  if (message === "MIN_POIS_NOT_REACHED") {
+    return t.errors.minPoisNotReached;
+  }
+
+  if (message === "MIN_POIS_GREATER_THAN_MAX_POIS") {
+    return t.errors.minPoisGreaterThanMax;
+  }
+
+  if (message === "Invalid start location.") {
+    return t.errors.invalidLocation;
+  }
+
+  if (/Failed to fetch|NetworkError|fetch/i.test(message || "")) {
+    return t.errors.network;
+  }
+
+  return t.errors.generic;
+}
+
 function getInitialPreference(key, fallback) {
   return window.localStorage.getItem(key) || fallback;
 }
@@ -78,6 +98,12 @@ export default function App() {
 
     try {
       const response = await recommendRoute(preferences);
+      const requestedMinimum = Number(preferences.minPois || 0);
+
+      if (requestedMinimum > 0 && response.summary.totalPois < requestedMinimum) {
+        throw new Error("MIN_POIS_NOT_REACHED");
+      }
+
       let enrichedResponse = {
         ...response,
         summary: {
@@ -137,7 +163,7 @@ export default function App() {
       setRouteData(enrichedResponse);
       setSelectedPoi(enrichedResponse.route[0] || null);
     } catch (requestError) {
-      setError(requestError.message);
+      setError(getFriendlyErrorMessage(requestError.message, t));
       setRouteData(null);
       setSelectedPoi(null);
     } finally {

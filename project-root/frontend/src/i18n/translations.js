@@ -5,16 +5,22 @@ export const translations = {
       eyebrow: "TFG · Recomendacion de rutas",
       title: "Planificador inteligente de POIs en Barcelona",
       subtitle:
-        "Interfaz preparada para conectar la futura logica hibrida del recomendador: preferencias del usuario, ranking, proximidad geografica y rutas optimizadas.",
+        "Sistema hibrido conectado al modelo real: preferencias del usuario, similitud tematica, calidad, proximidad geografica y ruta optimizada.",
       loading: "Cargando catalogo de categorias y estado del backend...",
       backend: "Backend",
       backendActive: "Activo",
       backendOffline: "Sin conexion",
     },
+    topbar: {
+      title: "Barcelona POIs",
+      subtitle: "Recomendador hibrido de rutas",
+    },
     controls: {
       theme: "Tema",
       themeDark: "Oscuro",
+      themeDarkShort: "Osc",
       themeLight: "Claro",
+      themeLightShort: "Cla",
       language: "Idioma",
       languageEs: "ES",
       languageEn: "EN",
@@ -24,17 +30,35 @@ export const translations = {
       title: "Disena una ruta turistica personalizada",
       useLocation: "Usar mi ubicacion",
       locating: "Ubicando...",
+      locationSection: "Ubicacion",
+      locationHelp: "Define desde donde empezara la ruta.",
+      poiSection: "Preferencias de POIs",
+      poiHelp: "Selecciona tematicas de interes. Puedes dejarlo vacio para explorar mas opciones.",
+      routeSection: "Restricciones de ruta",
+      routeHelp: "Ajusta el tamano, tiempo y distancia maxima de la experiencia.",
+      neighborhoodZones: "Zonas / barrios",
+      neighborhoodZoneOptions: [
+        "Horta-Guinardo / Vall Hebron",
+        "Ciutat Vella / Gotic / Born",
+        "Les Corts / Sarria / Collserola",
+        "Eixample / Gracia",
+        "Nou Barris / Sant Andreu",
+        "Montjuic / Sants",
+        "Poblenou / Sant Marti",
+      ],
       latitude: "Latitud inicial",
       longitude: "Longitud inicial",
       categories: "Categorias de interes",
       subcategories: "Subcategorias de interes",
       maxDistance: "Distancia maxima (km)",
+      minPois: "Numero minimo de POIs",
       maxPois: "Numero maximo de POIs",
       availableTime: "Tiempo disponible (min)",
       minRating: "Rating minimo",
       multiSelectHelp: "Seleccion multiple disponible con Ctrl o Cmd.",
       submit: "Generar ruta",
       submitting: "Generando ruta...",
+      minPoisError: "El numero minimo de POIs debe ser menor o igual que el maximo.",
     },
     overview: {
       eyebrow: "Resumen",
@@ -62,7 +86,9 @@ export const translations = {
         "La ruta devuelve menos POIs de los pedidos porque con los filtros actuales no caben mas candidatos razonables.",
       rating: "Rating",
       score: "Score",
+      relevance: "Relevancia",
       fromStart: "Inicio",
+      fromPrevious: "Tramo",
       visit: "Visita",
     },
     map: {
@@ -89,7 +115,7 @@ export const translations = {
       fromPrevious: "Desde anterior",
       coordinates: "Coordenadas",
       cluster: "Cluster",
-      confidence: "Confidence",
+      confidence: "Confianza",
       tags: "Etiquetas",
     },
     empty: {
@@ -101,11 +127,25 @@ export const translations = {
     common: {
       notAvailable: "N/A",
     },
+    errors: {
+      generic: "No se ha podido generar la ruta. Revisa las preferencias e intentalo de nuevo.",
+      invalidLocation: "La ubicacion inicial no es valida. Revisa latitud y longitud.",
+      minPoisGreaterThanMax: "El minimo de POIs no puede ser mayor que el maximo.",
+      minPoisNotReached:
+        "No se ha podido generar una ruta con el numero minimo de POIs solicitado. Prueba a aumentar la distancia maxima o reducir el minimo de POIs.",
+      network: "No se pudo conectar con el backend. Comprueba que el servidor esta arrancado.",
+    },
     geo: {
       unsupported: "Tu navegador no soporta geolocalizacion.",
       unavailable: "No se pudo obtener tu ubicacion actual.",
     },
     notes: {
+      hybridSystem:
+        "Sistema hibrido: TF-IDF, calidad del POI, proximidad y coherencia geografica.",
+      hybridCandidates:
+        "Candidatos filtrados por preferencias y ordenados por hybrid_candidate_score.",
+      hybridRoute:
+        "Ruta construida con heuristica greedy y restricciones de distancia, tiempo y tramo maximo.",
       walkingNetwork:
         "La distancia y el trazado del mapa se calculan sobre red viaria peatonal.",
       walkingFallback:
@@ -118,8 +158,6 @@ export const translations = {
         "Los candidatos se ordenan por score, rating, confianza y proximidad.",
       fallbackBuilder:
         "Se uso una heuristica de respaldo mas flexible para acercarse al numero de POIs solicitado.",
-      requestedPrefix: "Se solicitaron",
-      noCandidatesPrefix: "No quedaron candidatos tras aplicar filtros",
     },
   },
   en: {
@@ -128,16 +166,22 @@ export const translations = {
       eyebrow: "Thesis · Route recommendation",
       title: "Smart POI planner for Barcelona",
       subtitle:
-        "Interface prepared to connect the future hybrid recommender logic: user preferences, ranking, geographic proximity and optimized routes.",
+        "Hybrid system connected to the real model: user preferences, thematic similarity, quality, geographic proximity and optimized routing.",
       loading: "Loading category catalog and backend status...",
       backend: "Backend",
       backendActive: "Active",
       backendOffline: "Offline",
     },
+    topbar: {
+      title: "Barcelona POIs",
+      subtitle: "Hybrid route recommender",
+    },
     controls: {
       theme: "Theme",
       themeDark: "Dark",
+      themeDarkShort: "Dark",
       themeLight: "Light",
+      themeLightShort: "Light",
       language: "Language",
       languageEs: "ES",
       languageEn: "EN",
@@ -147,17 +191,35 @@ export const translations = {
       title: "Design a personalized tourist route",
       useLocation: "Use my location",
       locating: "Locating...",
+      locationSection: "Location",
+      locationHelp: "Define where the route will start.",
+      poiSection: "POI preferences",
+      poiHelp: "Select topics of interest. Leave them empty to explore more options.",
+      routeSection: "Route constraints",
+      routeHelp: "Adjust route size, available time and maximum distance.",
+      neighborhoodZones: "Areas / neighborhoods",
+      neighborhoodZoneOptions: [
+        "Horta-Guinardo / Vall Hebron",
+        "Ciutat Vella / Gotic / Born",
+        "Les Corts / Sarria / Collserola",
+        "Eixample / Gracia",
+        "Nou Barris / Sant Andreu",
+        "Montjuic / Sants",
+        "Poblenou / Sant Marti",
+      ],
       latitude: "Starting latitude",
       longitude: "Starting longitude",
       categories: "Interest categories",
       subcategories: "Interest subcategories",
       maxDistance: "Maximum distance (km)",
+      minPois: "Minimum number of POIs",
       maxPois: "Maximum number of POIs",
       availableTime: "Available time (min)",
       minRating: "Minimum rating",
       multiSelectHelp: "Multi-select available with Ctrl or Cmd.",
       submit: "Generate route",
       submitting: "Generating route...",
+      minPoisError: "The minimum number of POIs must be lower than or equal to the maximum.",
     },
     overview: {
       eyebrow: "Overview",
@@ -185,7 +247,9 @@ export const translations = {
         "The route returns fewer POIs than requested because no more reasonable candidates fit the current filters.",
       rating: "Rating",
       score: "Score",
+      relevance: "Relevance",
       fromStart: "Start",
+      fromPrevious: "Leg",
       visit: "Visit",
     },
     map: {
@@ -224,11 +288,25 @@ export const translations = {
     common: {
       notAvailable: "N/A",
     },
+    errors: {
+      generic: "The route could not be generated. Review the preferences and try again.",
+      invalidLocation: "The starting location is not valid. Check latitude and longitude.",
+      minPoisGreaterThanMax: "The minimum number of POIs cannot be greater than the maximum.",
+      minPoisNotReached:
+        "The system could not generate a route with the requested minimum number of POIs. Try increasing the maximum distance or reducing the minimum.",
+      network: "Could not connect to the backend. Check that the server is running.",
+    },
     geo: {
       unsupported: "Your browser does not support geolocation.",
       unavailable: "Could not retrieve your current location.",
     },
     notes: {
+      hybridSystem:
+        "Hybrid system: TF-IDF, POI quality, proximity and geographic coherence.",
+      hybridCandidates:
+        "Candidates filtered by preferences and ranked by hybrid_candidate_score.",
+      hybridRoute:
+        "Route built with a greedy heuristic and distance, time and leg constraints.",
       walkingNetwork:
         "Distance and map geometry are calculated over the pedestrian street network.",
       walkingFallback:
@@ -241,8 +319,6 @@ export const translations = {
         "Candidates are ranked by score, rating, confidence and proximity.",
       fallbackBuilder:
         "A softer fallback heuristic was used to get closer to the requested number of POIs.",
-      requestedPrefix: "Requested",
-      noCandidatesPrefix: "No candidates remained after applying filters",
     },
   },
 };
@@ -250,6 +326,18 @@ export const translations = {
 export function translateMetaNote(note, t) {
   if (!note) {
     return "";
+  }
+
+  if (note.startsWith("Sistema hibrido:")) {
+    return t.notes.hybridSystem;
+  }
+
+  if (note.startsWith("Candidatos filtrados")) {
+    return t.notes.hybridCandidates;
+  }
+
+  if (note.startsWith("Ruta construida")) {
+    return t.notes.hybridRoute;
   }
 
   if (note.startsWith("La distancia y el trazado del mapa se calculan")) {
@@ -285,6 +373,10 @@ export function translateMetaNote(note, t) {
           .replace(" min) and distance budget (", " min) y el limite de distancia (")
           .replace(" km).", " km).")
       : note;
+  }
+
+  if (note.startsWith("Se solicitaron")) {
+    return note;
   }
 
   if (note.startsWith("No candidates remained after applying filters")) {

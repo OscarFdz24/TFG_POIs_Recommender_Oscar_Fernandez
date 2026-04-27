@@ -39,6 +39,16 @@ DEFAULT_ROUTE_WEIGHTS = {
     "duration_penalty": 0.05,
 }
 
+CLUSTER_ZONE_LABELS = {
+    0: "Horta-Guinardo / Vall Hebron",
+    1: "Ciutat Vella / Gotic / Born",
+    2: "Les Corts / Sarria / Collserola",
+    3: "Eixample / Gracia",
+    4: "Nou Barris / Sant Andreu",
+    5: "Montjuic / Sants",
+    6: "Poblenou / Sant Marti",
+}
+
 
 def haversine_km(lat1, lon1, lat2, lon2):
     """Calcula distancia geodesica aproximada entre dos coordenadas."""
@@ -116,10 +126,12 @@ def normalize_preferences(payload):
         "start_lon": to_float(start_location.get("lng"), None),
         "categories": clean_list(payload.get("categories")),
         "subcategories": clean_list(payload.get("subcategories")),
+        "neighborhood_zones": clean_list(payload.get("neighborhoodZones")),
         "query_text": str(payload.get("queryText") or "").strip(),
         "reference_poi_name": str(payload.get("referencePoiName") or "").strip() or None,
         "min_rating": max(0.0, min(to_float(payload.get("minRating"), 0.0), 5.0)),
         "max_distance_km": max_distance_km,
+        "min_pois": max(0, min(to_int(payload.get("minPois"), 0), 12)),
         "max_pois": max(1, min(to_int(payload.get("maxPois"), 6), 12)),
         "max_time_minutes": max(30.0, min(to_float(payload.get("availableTimeMinutes"), 240.0), 720.0)),
         "max_leg_distance_km": max(0.5, min(to_float(payload.get("maxLegDistanceKm"), 2.5), max_distance_km)),
@@ -207,6 +219,12 @@ def build_hybrid_candidates(df, preferences, tfidf_matrix, vectorizer, indices):
 
     if subcategories:
         candidates = candidates[candidates["subcategory"].isin(subcategories)]
+
+    neighborhood_zones = preferences.get("neighborhood_zones") or []
+    if neighborhood_zones:
+        candidates = candidates[
+            candidates["cluster_geo"].map(CLUSTER_ZONE_LABELS).isin(neighborhood_zones)
+        ]
 
     # Filtramos por rating minimo. Los nulos se tratan como 0 para ser conservadores.
     candidates = candidates[candidates["rating"].fillna(0) >= preferences["min_rating"]].copy()
@@ -426,6 +444,9 @@ def row_to_poi(row, route_position=None):
         "visitDuration": finite_or_none(row.get("visit_duration_filled", row.get("visit_duration"))),
         "matchConfidence": finite_or_none(row.get("match_confidence_filled", row.get("match_confidence"))),
         "clusterGeo": finite_or_none(row.get("cluster_geo")),
+        "neighborhoodZone": finite_or_none(CLUSTER_ZONE_LABELS.get(int(row.get("cluster_geo"))))
+        if finite_or_none(row.get("cluster_geo")) is not None
+        else None,
         "tags": finite_or_none(row.get("tags_str")),
         "distanceFromStartKm": round(float(row.get("distance_from_start_km", 0.0)), 3),
         "similarityScore": round(float(row.get("similarity_score", 0.0)), 6),
@@ -480,6 +501,9 @@ def run_recommendation(payload):
     if preferences["start_lat"] is None or preferences["start_lon"] is None:
         raise ValueError("Invalid start location.")
 
+    if preferences["min_pois"] > preferences["max_pois"]:
+        raise ValueError("MIN_POIS_GREATER_THAN_MAX_POIS")
+
     # Cargamos el dataset enriquecido final.
     df = pd.read_parquet(DATASET_PATH)
     df["content_base"] = df["content_base"].fillna("").astype(str)
@@ -492,6 +516,9 @@ def run_recommendation(payload):
     # Fase 1: candidatos. Fase 2: ruta.
     candidates = build_hybrid_candidates(df, preferences, tfidf_matrix, vectorizer, indices)
     route_df, route_summary = build_hybrid_route(candidates, preferences)
+
+    if route_summary["total_pois"] < preferences["min_pois"]:
+        raise ValueError("MIN_POIS_NOT_REACHED")
 
     # Adaptamos DataFrames a JSON serializable para Node/React.
     route = [
@@ -509,8 +536,10 @@ def run_recommendation(payload):
             },
             "categories": preferences["categories"],
             "subcategories": preferences["subcategories"],
+            "neighborhoodZones": preferences["neighborhood_zones"],
             "queryText": preferences["query_text"],
             "minRating": preferences["min_rating"],
+            "minPois": preferences["min_pois"],
             "maxPois": preferences["max_pois"],
             "maxDistanceKm": preferences["max_distance_km"],
             "availableTimeMinutes": preferences["max_time_minutes"],
@@ -533,6 +562,7 @@ def run_recommendation(payload):
             "mode": "python-hybrid-recommender",
             "dataset": "pois_barcelona_hibrido.parquet",
             "methodology": "tfidf_quality_proximity_cluster_greedy",
+            "clusterZones": CLUSTER_ZONE_LABELS,
             "notes": build_notes(preferences, candidates, route_df),
         },
     }
