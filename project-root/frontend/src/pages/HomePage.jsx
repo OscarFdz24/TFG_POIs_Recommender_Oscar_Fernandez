@@ -1,7 +1,7 @@
-import PreferenceForm from "../components/PreferenceForm.jsx";
+import { useState } from "react";
 import ResultsSidebar from "../components/ResultsSidebar.jsx";
 import RouteMap from "../components/RouteMap.jsx";
-import AppTopbar from "../components/AppTopbar.jsx";
+import AppSidebar from "../components/AppSidebar.jsx";
 
 export default function HomePage({
   categories,
@@ -22,25 +22,102 @@ export default function HomePage({
   t,
   theme,
 }) {
+  const [sidebarOpen, setSidebarOpen] = useState(true);
+
   return (
-    <>
-      <AppTopbar
-        health={health}
-        language={language}
-        onLanguageChange={onLanguageChange}
-        onThemeChange={onThemeChange}
+    <div className={`app-layout ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}>
+      <AppSidebar
+        categories={categories}
+        defaultStart={defaultStart}
+        onClose={() => setSidebarOpen(false)}
+        onSubmit={onSubmit}
+        submitting={submitting}
         t={t}
-        theme={theme}
       />
 
       <main className="app-shell">
-      <section className="hero">
-        <div>
-          <p className="eyebrow">{t.app.eyebrow}</p>
-          <h1>{t.app.title}</h1>
-          <p className="hero-copy">{t.app.subtitle}</p>
+      <div className="mobile-topbar">
+        <button
+          className="mobile-menu-button"
+          onClick={() => setSidebarOpen(true)}
+          type="button"
+        >
+          ☰
+        </button>
+        <div className="mobile-brand">
+          <strong>{t.topbar.title}</strong>
+          <span>{t.topbar.subtitle}</span>
         </div>
-      </section>
+        <div className="mobile-topbar-actions">
+          <span className={health?.status === "ok" ? "mobile-status ok" : "mobile-status"} />
+          <button
+            className={theme === "dark" ? "active" : ""}
+            onClick={() => onThemeChange(theme === "dark" ? "light" : "dark")}
+            type="button"
+          >
+            {theme === "dark" ? t.controls.themeDarkShort : t.controls.themeLightShort}
+          </button>
+          <button
+            onClick={() => onLanguageChange(language === "es" ? "en" : "es")}
+            type="button"
+          >
+            {language === "es" ? t.controls.languageEs : t.controls.languageEn}
+          </button>
+        </div>
+      </div>
+
+      <div className="content-toolbar">
+        <button
+          className="sidebar-toggle-button"
+          onClick={() => setSidebarOpen((current) => !current)}
+          type="button"
+        >
+          {sidebarOpen ? t.sidebar.hide : t.sidebar.show}
+        </button>
+
+        <div className="content-toolbar-controls">
+          <div className="topbar-status" title={t.app.backend}>
+            <span className={health?.status === "ok" ? "status-dot ok" : "status-dot"} />
+            <span>{health?.status === "ok" ? t.app.backendActive : t.app.backendOffline}</span>
+          </div>
+
+          <div className="compact-control" aria-label={t.controls.theme}>
+            <button
+              className={theme === "dark" ? "active" : ""}
+              onClick={() => onThemeChange("dark")}
+              title={t.controls.themeDark}
+              type="button"
+            >
+              {t.controls.themeDarkShort}
+            </button>
+            <button
+              className={theme === "light" ? "active" : ""}
+              onClick={() => onThemeChange("light")}
+              title={t.controls.themeLight}
+              type="button"
+            >
+              {t.controls.themeLightShort}
+            </button>
+          </div>
+
+          <div className="compact-control" aria-label={t.controls.language}>
+            <button
+              className={language === "es" ? "active" : ""}
+              onClick={() => onLanguageChange("es")}
+              type="button"
+            >
+              {t.controls.languageEs}
+            </button>
+            <button
+              className={language === "en" ? "active" : ""}
+              onClick={() => onLanguageChange("en")}
+              type="button"
+            >
+              {t.controls.languageEn}
+            </button>
+          </div>
+        </div>
+      </div>
 
       {loading && (
         <section className="panel">
@@ -55,16 +132,6 @@ export default function HomePage({
 
       {!loading && (
         <>
-          <section className="top-grid">
-            <PreferenceForm
-              categoriesTree={categories}
-              defaultStart={defaultStart}
-              onSubmit={onSubmit}
-              submitting={submitting}
-              t={t}
-            />
-          </section>
-
           <section className="workspace-grid">
             <div className="workspace-main">
               {routeData ? (
@@ -145,6 +212,6 @@ export default function HomePage({
         </>
       )}
       </main>
-    </>
+    </div>
   );
 }

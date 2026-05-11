@@ -1,0 +1,420 @@
+HISTORIAL DE TRABAJO - 2026-04-27
+=================================
+
+Este documento resume los cambios realizados durante la sesion de trabajo del
+27/04/2026 en el proyecto de recomendacion de rutas de POIs en Barcelona.
+
+
+1. Documentacion general del proyecto
+-------------------------------------
+
+Se creo o amplio documentacion para entender y defender el proyecto:
+
+- README.md
+  README general en la raiz del repositorio. Explica objetivo, estructura,
+  metodologia, dependencias, ejecucion local, APIs y estado actual.
+
+- project-root/README.md
+  README especifico de la aplicacion web.
+
+- project-root/docs/integracion_modelo_hibrido_web.txt
+  Explica como se conecta el modelo hibrido con la web.
+
+- project-root/docs/flujo_usuario_modelo_hibrido_web.txt
+  Explica el flujo completo desde que el usuario mete preferencias hasta que se
+  pinta la ruta en el mapa.
+
+- project-root/docs/apis_del_proyecto.txt
+  Documenta la API propia, la comunicacion Node.js -> Python y la API externa
+  OSRM.
+
+- project-root/docs/uso_ml_en_el_recomendador.txt
+  Explica como se usa Machine Learning en el proyecto.
+
+- project-root/docs/preguntas_frecuentes_defensa.txt
+  Recoge preguntas y respuestas utiles para preparar la defensa.
+
+
+2. Integracion real del modelo hibrido con la web
+------------------------------------------------
+
+Se dejo conectado el endpoint principal de la web con el sistema hibrido final.
+
+Archivo principal del motor:
+
+ml_service/recommend_route.py
+
+Este script:
+
+- carga data/pois_barcelona_hibrido.parquet
+- calcula TF-IDF sobre content_base
+- calcula similarity_score
+- genera candidatos hibridos
+- calcula hybrid_candidate_score
+- construye la ruta greedy
+- devuelve candidates, route, summary y meta
+
+El backend Node.js llama a este script desde:
+
+project-root/backend/src/services/recommendationService.js
+
+La funcion principal:
+
+recommendRoute(preferences)
+
+delegada ahora en:
+
+runHybridRecommender(preferences)
+
+La heuristica temporal de Node.js se conserva como referencia, pero el endpoint
+principal ya usa:
+
+mode: python-hybrid-recommender
+dataset: pois_barcelona_hibrido.parquet
+
+
+3. Script para arrancar backend y frontend
+------------------------------------------
+
+Se creo y ajusto:
+
+start-dev.ps1
+
+Este script:
+
+- abre una ventana para el backend
+- abre una ventana para el frontend
+- configura PYTHON_BIN para usar el entorno Conda master_ds_clean
+- evita problemas con rutas que contienen espacios
+
+Comando de ejecucion:
+
+.\start-dev.ps1
+
+Si PowerShell bloquea scripts:
+
+powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
+
+
+4. Mejora visual y UX del frontend
+----------------------------------
+
+Se mejoro la interfaz sin rehacer la aplicacion desde cero.
+
+Archivos principales tocados:
+
+- project-root/frontend/src/pages/HomePage.jsx
+- project-root/frontend/src/components/AppTopbar.jsx
+- project-root/frontend/src/components/PreferenceForm.jsx
+- project-root/frontend/src/components/ResultsSidebar.jsx
+- project-root/frontend/src/components/PoiDetailPanel.jsx
+- project-root/frontend/src/i18n/translations.js
+- project-root/frontend/src/styles/main.css
+- project-root/frontend/src/App.jsx
+
+
+4.1. Topbar fija
+----------------
+
+Se creo:
+
+project-root/frontend/src/components/AppTopbar.jsx
+
+Incluye:
+
+- nombre de la aplicacion
+- estado del backend
+- selector claro/oscuro
+- selector ES/EN
+
+La topbar queda fija/sticky para que el usuario pueda cambiar tema o idioma sin
+volver arriba.
+
+
+4.2. Tema claro/oscuro
+----------------------
+
+El tema se mantiene mediante:
+
+localStorage
+
+Se aplica globalmente a:
+
+- fondo
+- textos
+- paneles
+- formularios
+- botones
+- tarjetas
+- resultados
+- mapa en la medida de lo posible
+
+
+4.3. Selector de idioma
+-----------------------
+
+Se reorganizo:
+
+project-root/frontend/src/i18n/translations.js
+
+Incluye estructura ES/EN para:
+
+- topbar
+- formulario
+- resumen
+- resultados
+- mapa
+- detalle
+- errores
+- notas metodologicas
+
+
+4.4. Formulario de preferencias
+-------------------------------
+
+Se compacto y reorganizo el formulario en bloques:
+
+- Ubicacion
+- Preferencias de POIs
+- Restricciones de ruta
+
+Tambien se centro en pantalla y se redujo su altura para evitar tanto scroll.
+
+
+5. Numero minimo de POIs
+------------------------
+
+Se anadio el campo:
+
+minPois
+
+En el frontend:
+
+project-root/frontend/src/components/PreferenceForm.jsx
+
+Validaciones:
+
+- no puede ser negativo
+- debe ser menor o igual que maxPois
+
+En el motor Python:
+
+ml_service/recommend_route.py
+
+Si el modelo no puede generar una ruta con el minimo solicitado, devuelve:
+
+MIN_POIS_NOT_REACHED
+
+El frontend lo muestra como mensaje claro:
+
+"No se ha podido generar una ruta con el numero minimo de POIs solicitado.
+Prueba a aumentar la distancia maxima o reducir el minimo de POIs."
+
+
+6. Resultados bajo el mapa y acordeon de POIs
+---------------------------------------------
+
+Se cambio el layout para que los resultados no aparezcan a la derecha.
+
+Nuevo flujo visual:
+
+Hero
+Formulario compacto centrado
+Resumen de ruta centrado
+Mapa
+Resultados debajo del mapa
+POIs en acordeon desplegable
+
+Se unifico el detalle de cada POI dentro de cada tarjeta desplegable.
+
+Cada POI muestra:
+
+- orden
+- nombre
+- categoria
+- subcategoria
+- zona de ciudad
+- rating
+- score
+- relevancia hibrida
+- duracion
+- distancia desde inicio
+- distancia desde el anterior
+- coordenadas
+- cluster
+- confianza
+- tags
+
+
+7. Resumen de ruta centrado encima del mapa
+-------------------------------------------
+
+El resumen general aparece ahora justo encima del mapa, centrado.
+
+Incluye:
+
+- POIs generados
+- distancia de ruta
+- tiempo de visita
+- desplazamiento
+- tiempo total
+- modo de ruta
+
+
+8. Zonas de ciudad basadas en clusters
+--------------------------------------
+
+Se anadio un filtro de zonas de ciudad usando cluster_geo.
+
+Internamente se sigue usando cluster_geo, pero se muestran etiquetas mas claras
+para turistas.
+
+Mapeo actual:
+
+0 -> Norte verde y miradores
+1 -> Centro historico
+2 -> Oeste y zona alta
+3 -> Eixample y Gracia
+4 -> Norte urbano
+5 -> Montjuic y sur
+6 -> Este litoral y Poblenou
+
+Archivos modificados:
+
+- ml_service/recommend_route.py
+- project-root/frontend/src/components/PreferenceForm.jsx
+- project-root/frontend/src/i18n/translations.js
+- project-root/frontend/src/components/ResultsSidebar.jsx
+
+Si el usuario no selecciona ninguna zona, se usa toda Barcelona.
+
+Si selecciona una o varias zonas, el modelo filtra candidatos dentro de esas
+zonas.
+
+
+9. Coordenadas recomendadas para probar zonas
+---------------------------------------------
+
+Centro historico:
+
+lat 41.3839
+lng 2.1762
+
+Eixample y Gracia:
+
+lat 41.4035
+lng 2.1744
+
+Montjuic y sur:
+
+lat 41.3712
+lng 2.1517
+
+Este litoral y Poblenou:
+
+lat 41.4015
+lng 2.2042
+
+Oeste y zona alta:
+
+lat 41.3864
+lng 2.1188
+
+Norte verde y miradores:
+
+lat 41.4309
+lng 2.1430
+
+Norte urbano:
+
+lat 41.4352
+lng 2.1895
+
+
+10. Verificaciones realizadas
+-----------------------------
+
+Se ejecuto varias veces:
+
+npm run build
+
+en:
+
+project-root/frontend
+
+Resultado:
+
+- build correcto
+- sin errores JSX
+- sin errores de compilacion Vite
+
+Tambien se probo directamente el motor Python:
+
+ml_service/recommend_route.py
+
+Casos probados:
+
+- minPois valido
+- minPois imposible
+- filtro por zona "Eixample y Gracia"
+
+Resultado:
+
+- el motor devuelve mode: python-hybrid-recommender
+- devuelve dataset: pois_barcelona_hibrido.parquet
+- filtra correctamente por zona
+- devuelve error controlado MIN_POIS_NOT_REACHED cuando corresponde
+
+
+11. Como comprobar que se usa el modelo hibrido final
+----------------------------------------------------
+
+En la respuesta del backend debe aparecer:
+
+meta.mode = python-hybrid-recommender
+meta.dataset = pois_barcelona_hibrido.parquet
+
+Si apareciera:
+
+node-temporary-heuristic
+
+significaria que se esta usando la heuristica antigua.
+
+Actualmente recommendRoute() en:
+
+project-root/backend/src/services/recommendationService.js
+
+llama a:
+
+runHybridRecommender(preferences)
+
+
+12. Estado final de la sesion
+-----------------------------
+
+Al final de esta sesion, el proyecto tiene:
+
+- modelo hibrido conectado a la web
+- frontend mejorado visualmente
+- topbar sticky
+- modo claro/oscuro
+- selector ES/EN
+- formulario compacto
+- minimo de POIs
+- filtro por zonas turisticas
+- resultados bajo mapa
+- POIs en acordeon desplegable
+- errores mas claros para usuario final
+- documentacion ampliada para memoria y defensa
+
+La aplicacion se puede probar con:
+
+.\start-dev.ps1
+
+Frontend:
+
+http://localhost:5173
+
+Backend:
+
+http://localhost:4000/api/health

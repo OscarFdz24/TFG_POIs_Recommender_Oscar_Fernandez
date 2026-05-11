@@ -15,6 +15,10 @@ export const translations = {
       title: "Barcelona POIs",
       subtitle: "Recomendador hibrido de rutas",
     },
+    sidebar: {
+      show: "Mostrar preferencias",
+      hide: "Ocultar preferencias",
+    },
     controls: {
       theme: "Tema",
       themeDark: "Oscuro",
@@ -49,7 +53,9 @@ export const translations = {
       latitude: "Latitud inicial",
       longitude: "Longitud inicial",
       categories: "Categorias de interes",
+      categoriesHelp: "Elige una o varias tematicas principales.",
       subcategories: "Subcategorias de interes",
+      subcategoriesHelp: "Refina la busqueda con tipos concretos de POIs.",
       maxDistance: "Distancia maxima (km)",
       minPois: "Numero minimo de POIs",
       maxPois: "Numero maximo de POIs",
@@ -176,6 +182,10 @@ export const translations = {
       title: "Barcelona POIs",
       subtitle: "Hybrid route recommender",
     },
+    sidebar: {
+      show: "Show preferences",
+      hide: "Hide preferences",
+    },
     controls: {
       theme: "Theme",
       themeDark: "Dark",
@@ -210,7 +220,9 @@ export const translations = {
       latitude: "Starting latitude",
       longitude: "Starting longitude",
       categories: "Interest categories",
+      categoriesHelp: "Choose one or several main themes.",
       subcategories: "Interest subcategories",
+      subcategoriesHelp: "Refine the search with specific POI types.",
       maxDistance: "Maximum distance (km)",
       minPois: "Minimum number of POIs",
       maxPois: "Maximum number of POIs",
