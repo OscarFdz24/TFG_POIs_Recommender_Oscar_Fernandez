@@ -10,36 +10,57 @@ export default function HomePage({
   health,
   language,
   loading,
+  loadingSavedRoute,
+  appMode,
+  guestRoutes,
+  onAppModeChange,
   onLanguageChange,
+  onLoadSavedRoute,
   onPoiSelect,
+  onRemoveGuestRoute,
   onRouteDisplayModeChange,
+  onSaveGuestRoute,
+  onSaveRoute,
   onSubmit,
   onThemeChange,
   routeData,
   routeDisplayMode,
+  savedRouteInfo,
   selectedPoi,
+  savingRoute,
   submitting,
   t,
   theme,
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
+  const [routeCode, setRouteCode] = useState("");
+  const isGuestMode = appMode === "guest";
+
+  function submitRouteCode(event) {
+    event.preventDefault();
+    if (routeCode.trim()) {
+      onLoadSavedRoute(routeCode.trim());
+    }
+  }
 
   return (
-    <div className={`app-layout ${sidebarOpen ? "sidebar-open" : "sidebar-closed"}`}>
-      <AppSidebar
-        categories={categories}
-        defaultStart={defaultStart}
-        onClose={() => setSidebarOpen(false)}
-        onSubmit={onSubmit}
-        submitting={submitting}
-        t={t}
-      />
+    <div className={`app-layout ${sidebarOpen && !isGuestMode ? "sidebar-open" : "sidebar-closed"} ${isGuestMode ? "guest-layout" : ""}`}>
+      {!isGuestMode && (
+        <AppSidebar
+          categories={categories}
+          defaultStart={defaultStart}
+          onClose={() => setSidebarOpen(false)}
+          onSubmit={onSubmit}
+          submitting={submitting}
+          t={t}
+        />
+      )}
 
       <main className="app-shell">
       <div className="mobile-topbar">
         <button
           className="mobile-menu-button"
-          onClick={() => setSidebarOpen(true)}
+          onClick={() => (isGuestMode ? onAppModeChange("client") : setSidebarOpen(true))}
           type="button"
         >
           ☰
@@ -67,13 +88,34 @@ export default function HomePage({
       </div>
 
       <div className="content-toolbar">
-        <button
-          className="sidebar-toggle-button"
-          onClick={() => setSidebarOpen((current) => !current)}
-          type="button"
-        >
-          {sidebarOpen ? t.sidebar.hide : t.sidebar.show}
-        </button>
+        <div className="mode-toolbar">
+          <div className="compact-control" aria-label={t.modes.label}>
+            <button
+              className={appMode === "client" ? "active" : ""}
+              onClick={() => onAppModeChange("client")}
+              type="button"
+            >
+              {t.modes.client}
+            </button>
+            <button
+              className={appMode === "guest" ? "active" : ""}
+              onClick={() => onAppModeChange("guest")}
+              type="button"
+            >
+              {t.modes.guest}
+            </button>
+          </div>
+
+          {!isGuestMode && (
+            <button
+              className="sidebar-toggle-button"
+              onClick={() => setSidebarOpen((current) => !current)}
+              type="button"
+            >
+              {sidebarOpen ? t.sidebar.hide : t.sidebar.show}
+            </button>
+          )}
+        </div>
 
         <div className="content-toolbar-controls">
           <div className="topbar-status" title={t.app.backend}>
@@ -132,6 +174,75 @@ export default function HomePage({
 
       {!loading && (
         <>
+          {isGuestMode && (
+            <section className="panel guest-loader-panel">
+              <div>
+                <p className="eyebrow">{t.guest.eyebrow}</p>
+                <h2>{t.guest.title}</h2>
+                <p>{t.guest.description}</p>
+              </div>
+              <form className="guest-loader-form" onSubmit={submitRouteCode}>
+                <label>
+                  <span>{t.guest.codeLabel}</span>
+                  <input
+                    onChange={(event) => setRouteCode(event.target.value)}
+                    placeholder={t.guest.codePlaceholder}
+                    value={routeCode}
+                  />
+                </label>
+                <button className="primary-button" disabled={loadingSavedRoute} type="submit">
+                  {loadingSavedRoute ? t.guest.loading : t.guest.load}
+                </button>
+              </form>
+              <div className="guest-routes-wallet">
+                <div className="guest-routes-wallet-head">
+                  <div>
+                    <p className="eyebrow">{t.guestRoutes.eyebrow}</p>
+                    <h3>{t.guestRoutes.title}</h3>
+                  </div>
+                  {routeData?.route?.length && savedRouteInfo?.publicId ? (
+                    <button className="secondary-button" onClick={onSaveGuestRoute} type="button">
+                      {t.guestRoutes.saveCurrent}
+                    </button>
+                  ) : null}
+                </div>
+
+                {guestRoutes.length ? (
+                  <div className="guest-route-list">
+                    {guestRoutes.map((route) => (
+                      <article className="guest-route-item" key={route.publicId}>
+                        <div>
+                          <strong>{route.name}</strong>
+                          <span>{route.totalPois} POIs</span>
+                          <code>{route.publicId}</code>
+                        </div>
+                        <div className="guest-route-actions">
+                          <button
+                            className="secondary-button"
+                            disabled={loadingSavedRoute}
+                            onClick={() => onLoadSavedRoute(route.publicId)}
+                            type="button"
+                          >
+                            {t.guestRoutes.open}
+                          </button>
+                          <button
+                            className="secondary-button"
+                            onClick={() => onRemoveGuestRoute(route.publicId)}
+                            type="button"
+                          >
+                            {t.guestRoutes.remove}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="guest-routes-empty">{t.guestRoutes.empty}</p>
+                )}
+              </div>
+            </section>
+          )}
+
           <section className="workspace-grid">
             <div className="workspace-main">
               {routeData ? (
@@ -177,6 +288,29 @@ export default function HomePage({
                       </strong>
                     </div>
                   </div>
+                  {!isGuestMode && (
+                    <div className="save-route-actions">
+                      <button
+                        className="primary-button"
+                        disabled={savingRoute}
+                        onClick={onSaveRoute}
+                        type="button"
+                      >
+                        {savingRoute ? t.saved.saving : t.saved.save}
+                      </button>
+                      {savedRouteInfo?.publicId && (
+                        <div className="saved-route-box">
+                          <span>{t.saved.success}</span>
+                          <strong>{savedRouteInfo.publicId}</strong>
+                        </div>
+                      )}
+                    </div>
+                  )}
+                  {isGuestMode && savedRouteInfo?.publicId && (
+                    <p className="saved-route-note">
+                      {t.saved.loaded}: {savedRouteInfo.publicId}
+                    </p>
+                  )}
                 </section>
               ) : null}
 

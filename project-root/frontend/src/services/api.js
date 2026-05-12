@@ -31,6 +31,17 @@ export function recommendRoute(payload) {
   });
 }
 
+export function saveRoute(payload) {
+  return request("/api/routes", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchSavedRoute(publicId) {
+  return request(`/api/routes/${encodeURIComponent(publicId)}`);
+}
+
 export async function fetchStreetRoute(waypoints) {
   if (!Array.isArray(waypoints) || waypoints.length < 2) {
     return null;

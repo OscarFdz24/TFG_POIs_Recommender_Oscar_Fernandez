@@ -3,8 +3,10 @@ import HomePage from "./pages/HomePage.jsx";
 import {
   fetchCategories,
   fetchHealth,
+  fetchSavedRoute,
   fetchStreetRoute,
   recommendRoute,
+  saveRoute,
 } from "./services/api.js";
 import { translations } from "./i18n/translations.js";
 
@@ -12,6 +14,8 @@ const DEFAULT_START = {
   lat: 41.3874,
   lng: 2.1686,
 };
+
+const GUEST_ROUTES_STORAGE_KEY = "guest-saved-routes";
 
 function getFriendlyErrorMessage(message, t) {
   if (message === "MIN_POIS_NOT_REACHED") {
@@ -37,6 +41,14 @@ function getInitialPreference(key, fallback) {
   return window.localStorage.getItem(key) || fallback;
 }
 
+function getInitialGuestRoutes() {
+  try {
+    return JSON.parse(window.localStorage.getItem(GUEST_ROUTES_STORAGE_KEY) || "[]");
+  } catch {
+    return [];
+  }
+}
+
 export default function App() {
   const [categories, setCategories] = useState([]);
   const [health, setHealth] = useState(null);
@@ -45,6 +57,11 @@ export default function App() {
   const [error, setError] = useState("");
   const [selectedPoi, setSelectedPoi] = useState(null);
   const [routeData, setRouteData] = useState(null);
+  const [savedRouteInfo, setSavedRouteInfo] = useState(null);
+  const [savingRoute, setSavingRoute] = useState(false);
+  const [loadingSavedRoute, setLoadingSavedRoute] = useState(false);
+  const [appMode, setAppMode] = useState("client");
+  const [guestRoutes, setGuestRoutes] = useState(getInitialGuestRoutes);
   const [theme, setTheme] = useState(() => getInitialPreference("app-theme", "dark"));
   const [language, setLanguage] = useState(() =>
     getInitialPreference("app-language", "es"),
@@ -62,6 +79,10 @@ export default function App() {
     document.documentElement.lang = t.languageCode;
     window.localStorage.setItem("app-language", language);
   }, [language, t.languageCode]);
+
+  useEffect(() => {
+    window.localStorage.setItem(GUEST_ROUTES_STORAGE_KEY, JSON.stringify(guestRoutes));
+  }, [guestRoutes]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -161,6 +182,7 @@ export default function App() {
       }
 
       setRouteData(enrichedResponse);
+      setSavedRouteInfo(null);
       setSelectedPoi(enrichedResponse.route[0] || null);
     } catch (requestError) {
       setError(getFriendlyErrorMessage(requestError.message, t));
@@ -171,6 +193,105 @@ export default function App() {
     }
   }
 
+  async function handleSaveRoute() {
+    if (!routeData?.route?.length) {
+      setError(t.saved.noRouteToSave);
+      return;
+    }
+
+    setSavingRoute(true);
+    setError("");
+
+    try {
+      const saved = await saveRoute({
+        name: `${t.saved.defaultRouteName} ${new Date().toLocaleString()}`,
+        recommendation: routeData,
+        navigation: routeData.navigation || null,
+      });
+      setSavedRouteInfo(saved);
+    } catch (requestError) {
+      setError(requestError.message || t.saved.saveError);
+    } finally {
+      setSavingRoute(false);
+    }
+  }
+
+  async function handleLoadSavedRoute(publicId) {
+    setLoadingSavedRoute(true);
+    setError("");
+    setSavedRouteInfo(null);
+
+    try {
+      const saved = await fetchSavedRoute(publicId);
+      const recommendation = saved.recommendation || {};
+      const savedSummary = saved.summary || recommendation.summary || {};
+      const totalVisitMinutes = savedSummary.totalVisitMinutes ?? saved.totalVisitMinutes ?? 0;
+      const totalTravelMinutes = savedSummary.totalTravelMinutes ?? saved.totalTravelMinutes ?? null;
+      const loadedRoute = {
+        ...recommendation,
+        name: saved.name,
+        navigation: saved.navigation || recommendation.navigation || null,
+        summary: {
+          ...savedSummary,
+          totalTravelMinutes,
+          totalExperienceMinutes:
+            savedSummary.totalExperienceMinutes ??
+            saved.totalExperienceMinutes ??
+            (totalTravelMinutes === null
+              ? totalVisitMinutes
+              : Number(totalVisitMinutes) + Number(totalTravelMinutes)),
+        },
+        meta: saved.meta || recommendation.meta || {},
+        preferences: saved.preferences || recommendation.preferences || {},
+        route: recommendation.route || saved.pois?.map((poi) => poi.poiData || poi) || [],
+      };
+
+      setRouteData(loadedRoute);
+      setSelectedPoi(loadedRoute.route[0] || null);
+      setSavedRouteInfo({
+        publicId: saved.publicId,
+        routeId: saved.id,
+        totalPois: saved.totalPois,
+        message: t.saved.loaded,
+      });
+      setAppMode("guest");
+    } catch (requestError) {
+      setError(requestError.message || t.saved.loadError);
+      setRouteData(null);
+      setSelectedPoi(null);
+    } finally {
+      setLoadingSavedRoute(false);
+    }
+  }
+
+  function handleSaveGuestRoute() {
+    if (!routeData?.route?.length || !savedRouteInfo?.publicId) {
+      setError(t.guestRoutes.noLoadedRoute);
+      return;
+    }
+
+    const routeName = routeData.name || `${t.guestRoutes.defaultName} ${guestRoutes.length + 1}`;
+    const newItem = {
+      publicId: savedRouteInfo.publicId,
+      name: routeName,
+      totalPois: routeData.summary?.totalPois || routeData.route.length,
+      savedAt: new Date().toISOString(),
+    };
+
+    setGuestRoutes((currentRoutes) => {
+      const withoutDuplicate = currentRoutes.filter(
+        (route) => route.publicId !== newItem.publicId,
+      );
+      return [newItem, ...withoutDuplicate].slice(0, 12);
+    });
+  }
+
+  function handleRemoveGuestRoute(publicId) {
+    setGuestRoutes((currentRoutes) =>
+      currentRoutes.filter((route) => route.publicId !== publicId),
+    );
+  }
+
   return (
     <HomePage
       categories={categories}
@@ -179,14 +300,24 @@ export default function App() {
       health={health}
       language={language}
       loading={loading}
+      loadingSavedRoute={loadingSavedRoute}
+      appMode={appMode}
+      onAppModeChange={setAppMode}
       onLanguageChange={setLanguage}
+      onLoadSavedRoute={handleLoadSavedRoute}
       onPoiSelect={setSelectedPoi}
+      onRemoveGuestRoute={handleRemoveGuestRoute}
       onRouteDisplayModeChange={setRouteDisplayMode}
+      onSaveGuestRoute={handleSaveGuestRoute}
+      onSaveRoute={handleSaveRoute}
       onSubmit={handleSubmit}
       onThemeChange={setTheme}
       routeData={routeData}
       routeDisplayMode={routeDisplayMode}
+      guestRoutes={guestRoutes}
+      savedRouteInfo={savedRouteInfo}
       selectedPoi={selectedPoi}
+      savingRoute={savingRoute}
       submitting={submitting}
       t={t}
       theme={theme}
