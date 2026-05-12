@@ -359,6 +359,7 @@ cors
 csv-parse
 dotenv
 express
+mysql2
 ```
 
 Instalacion:

@@ -153,6 +153,87 @@ Campos importantes:
   dataset: pois_barcelona_hibrido.parquet
 
 
+1.5. POST /api/routes
+---------------------
+
+Archivos relacionados:
+
+project-root/backend/src/routes/index.js
+project-root/backend/src/controllers/routeController.js
+project-root/backend/src/services/routePersistenceService.js
+project-root/backend/src/services/db.js
+
+Uso:
+
+Guarda en MySQL una ruta que ya ha sido generada por el recomendador hibrido.
+
+Este endpoint no genera una ruta nueva. Su responsabilidad es persistir el
+resultado para poder recuperarlo mas adelante.
+
+Payload recomendado:
+
+{
+  "name": "Ruta cultural por Barcelona",
+  "recommendation": {
+    "preferences": { ... },
+    "candidates": [ ... ],
+    "route": [ ... ],
+    "summary": { ... },
+    "meta": { ... }
+  }
+}
+
+Respuesta:
+
+{
+  "publicId": "uuid-publico-de-la-ruta",
+  "routeId": 1,
+  "totalPois": 5,
+  "message": "Ruta guardada correctamente."
+}
+
+Tablas utilizadas:
+
+- routes
+- route_pois
+
+La tabla routes guarda el resumen, preferencias, metadatos y respuesta completa
+del modelo en JSON. La tabla route_pois guarda cada POI de la ruta en una fila
+separada, incluyendo su orden dentro de la ruta.
+
+
+1.6. GET /api/routes/:publicId
+------------------------------
+
+Archivos relacionados:
+
+project-root/backend/src/routes/index.js
+project-root/backend/src/controllers/routeController.js
+project-root/backend/src/services/routePersistenceService.js
+
+Uso:
+
+Recupera una ruta guardada en MySQL a partir de su publicId.
+
+Ejemplo:
+
+http://localhost:4000/api/routes/uuid-publico-de-la-ruta
+
+Respuesta:
+
+{
+  "publicId": "...",
+  "name": "...",
+  "summary": { ... },
+  "recommendation": { ... },
+  "pois": [ ... ]
+}
+
+Este endpoint sera la base para funcionalidades futuras como "mis rutas",
+recuperar rutas asignadas a usuarios o permitir que un hotel consulte rutas
+creadas para sus clientes.
+
+
 2. Comunicacion interna Node.js -> Python
 ----------------------------------------
 
@@ -311,6 +392,8 @@ En el proyecto se utilizan tres capas de API/comunicacion:
    - /api/pois
    - /api/categories
    - /api/recommend-route
+   - /api/routes
+   - /api/routes/:publicId
 
 2. Comunicacion interna Node.js -> Python
 

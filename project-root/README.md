@@ -59,6 +59,8 @@ GET  /api/health
 GET  /api/pois
 GET  /api/categories
 POST /api/recommend-route
+POST /api/routes
+GET  /api/routes/:publicId
 ```
 
 El endpoint mas importante es:
@@ -79,6 +81,36 @@ Actualmente el modo esperado en la respuesta es:
 ```text
 python-hybrid-recommender
 ```
+
+### Persistencia de rutas
+
+El backend tambien tiene una primera integracion con MySQL para guardar y
+recuperar rutas generadas.
+
+El endpoint:
+
+```text
+POST /api/routes
+```
+
+recibe una ruta ya generada por `POST /api/recommend-route` y la guarda en las
+tablas:
+
+```text
+routes
+route_pois
+```
+
+El endpoint:
+
+```text
+GET /api/routes/:publicId
+```
+
+recupera una ruta guardada usando su identificador publico.
+
+Para el MVP, MySQL se usa como capa de persistencia. El recomendador sigue
+leyendo el dataset hibrido desde `data/pois_barcelona_hibrido.parquet`.
 
 ## Motor hibrido
 
