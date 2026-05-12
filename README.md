@@ -253,6 +253,47 @@ https://router.project-osrm.org/route/v1/foot/
 
 OSRM no recomienda POIs. Solo calcula la ruta caminando entre los puntos que ya ha decidido el recomendador hibrido.
 
+## Base de datos MySQL
+
+El proyecto incluye una primera estructura de base de datos en:
+
+```text
+database/
+```
+
+Para el MVP del TFM, la BBDD se usa como capa de persistencia, no como fuente
+principal del modelo. Es decir:
+
+```text
+parquet/csv hibrido -> recomendador Python
+MySQL -> usuarios, clientes, POIs importados y rutas guardadas
+```
+
+Los POIs se pueden cargar en MySQL con:
+
+```powershell
+python database/import_pois_to_mysql.py
+```
+
+Antes se puede probar sin insertar datos:
+
+```powershell
+python database/import_pois_to_mysql.py --dry-run --limit 5
+```
+
+La configuracion local de MySQL se guarda en:
+
+```text
+database/db_config.local.json
+```
+
+Ese archivo queda ignorado por Git para no subir contrasenas. El archivo de
+referencia es:
+
+```text
+database/db_config.example.json
+```
+
 ## Dependencias necesarias
 
 ### Python
@@ -274,6 +315,7 @@ matplotlib
 jupyter
 notebook
 flask
+mysql-connector-python
 ```
 
 Uso principal de cada una:
@@ -285,12 +327,16 @@ Uso principal de cada una:
 - `matplotlib`: visualizaciones en notebooks
 - `jupyter` / `notebook`: ejecucion de notebooks
 - `flask`: estructura Python previa conservada en `project-root/app`
+- `mysql-connector-python`: conexion desde Python a MySQL para importar los POIs a la BBDD
 
 Instalacion orientativa:
 
 ```powershell
-pip install pandas numpy scikit-learn pyarrow matplotlib jupyter notebook flask
+pip install pandas numpy scikit-learn pyarrow matplotlib jupyter notebook flask mysql-connector-python
 ```
+
+Nota: para importar POIs a MySQL, `pyarrow` permite leer el fichero parquet. Si
+no esta instalado, el importador usa automaticamente el CSV hibrido equivalente.
 
 En mi entorno local el Python usado por el backend es:
 
@@ -461,6 +507,8 @@ Algunas mejoras posibles son:
 - incorporar horarios de apertura de forma mas estricta
 - comparar formalmente los resultados contra el baseline
 - probar embeddings semanticos como alternativa a TF-IDF
+- conectar login y persistencia de rutas usando la BBDD MySQL
+- permitir recuperar rutas guardadas por usuario o cliente/hotel
 
 ## Idea principal del proyecto
 
