@@ -19,6 +19,19 @@ export const translations = {
       show: "Mostrar preferencias",
       hide: "Ocultar preferencias",
     },
+    auth: {
+      eyebrow: "Acceso privado",
+      description:
+        "Inicia sesion para acceder a la vista correspondiente segun tu rol.",
+      email: "Email",
+      password: "Password",
+      login: "Iniciar sesion",
+      loading: "Entrando...",
+      logout: "Cerrar sesion",
+      demoTitle: "Usuarios demo",
+      checkingSession: "Comprobando sesion...",
+      loginError: "No se ha podido iniciar sesion. Revisa email y password.",
+    },
     modes: {
       label: "Modo de uso",
       admin: "Admin",
@@ -339,6 +352,18 @@ export const translations = {
     sidebar: {
       show: "Show preferences",
       hide: "Hide preferences",
+    },
+    auth: {
+      eyebrow: "Private access",
+      description: "Sign in to access the correct view according to your role.",
+      email: "Email",
+      password: "Password",
+      login: "Sign in",
+      loading: "Signing in...",
+      logout: "Sign out",
+      demoTitle: "Demo users",
+      checkingSession: "Checking session...",
+      loginError: "Login failed. Check email and password.",
     },
     modes: {
       label: "Use mode",

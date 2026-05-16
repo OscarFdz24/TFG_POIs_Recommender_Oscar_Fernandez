@@ -21,6 +21,7 @@ export default function HomePage({
   loading,
   loadingSavedRoute,
   appMode,
+  currentUser,
   userRoutes,
   onAppModeChange,
   onCreateAdminClient,
@@ -44,6 +45,7 @@ export default function HomePage({
   onSubmit,
   onThemeChange,
   onToggleAdminUserStatus,
+  onLogout,
   routeData,
   routeDisplayMode,
   manualPois,
@@ -71,11 +73,11 @@ export default function HomePage({
     : "no-sidebar";
   const visibleRouteData =
     isManualTool && routeData?.meta?.mode !== "manual-catalog-route" ? null : routeData;
-  const currentUser = isAdminMode
-    ? { name: "Admin Demo", email: "admin.demo@example.com", role: t.modes.admin }
-    : isUserMode
-      ? { name: "Usuario Demo", email: "usuario.demo@example.com", role: t.modes.user }
-      : { name: "Empresa Demo", email: "empresa.demo@example.com", role: t.modes.company };
+  const sessionUser = currentUser || {
+    name: "-",
+    email: "-",
+    role: { name: isAdminMode ? t.modes.admin : isUserMode ? t.modes.user : t.modes.company },
+  };
 
   function submitRouteCode(event) {
     event.preventDefault();
@@ -102,11 +104,6 @@ export default function HomePage({
         <button
           className="mobile-menu-button"
           onClick={() => {
-            if (isUserMode) {
-              onAppModeChange("company");
-              return;
-            }
-
             setCompanyTool("smart");
             setSidebarOpen(true);
           }}
@@ -142,8 +139,8 @@ export default function HomePage({
       {adminData?.stats && (
         <div className="mobile-admin-summary">
           <div className="mobile-session-card">
-            <strong>{currentUser.name}</strong>
-            <span>{currentUser.email}</span>
+            <strong>{sessionUser.name}</strong>
+            <span>{sessionUser.email}</span>
           </div>
           <div className="mobile-metrics-strip">
             <span>
@@ -178,30 +175,6 @@ export default function HomePage({
               <strong>{t.topbar.title}</strong>
               <span>{t.topbar.subtitle}</span>
             </div>
-          </div>
-
-          <div className="compact-control dev-mode-switch" aria-label={t.modes.label}>
-            <button
-              className={appMode === "admin" ? "active" : ""}
-              onClick={() => onAppModeChange("admin")}
-              type="button"
-            >
-              {t.modes.admin}
-            </button>
-            <button
-              className={appMode === "company" ? "active" : ""}
-              onClick={() => onAppModeChange("company")}
-              type="button"
-            >
-              {t.modes.company}
-            </button>
-            <button
-              className={appMode === "user" ? "active" : ""}
-              onClick={() => onAppModeChange("user")}
-              type="button"
-            >
-              {t.modes.user}
-            </button>
           </div>
 
           {isSmartTool && !sidebarOpen && (
@@ -287,10 +260,14 @@ export default function HomePage({
           )}
 
           <div className="session-card" title={currentUser.email}>
-            <span>{currentUser.role}</span>
-            <strong>{currentUser.name}</strong>
-            <small>{currentUser.email}</small>
+            <span>{sessionUser.role?.name || sessionUser.role?.code}</span>
+            <strong>{sessionUser.name}</strong>
+            <small>{sessionUser.email}</small>
           </div>
+
+          <button className="secondary-button logout-button" onClick={onLogout} type="button">
+            {t.auth.logout}
+          </button>
 
         </div>
       </div>

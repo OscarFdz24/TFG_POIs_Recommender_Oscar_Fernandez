@@ -59,6 +59,12 @@ export const env = {
   // Interprete Python. En desarrollo se pasa desde start-dev.ps1 para usar Conda.
   pythonBin: process.env.PYTHON_BIN || "python",
 
+  // Configuracion de autenticacion JWT.
+  jwt: {
+    secret: process.env.JWT_SECRET || "dev-secret-change-me",
+    expiresIn: process.env.JWT_EXPIRES_IN || "8h",
+  },
+
   // Configuracion MySQL. Por defecto reutiliza database/db_config.local.json.
   db: {
     host: process.env.MYSQL_HOST || localDbConfig.host || "localhost",

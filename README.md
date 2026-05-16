@@ -26,10 +26,11 @@ Actualmente incluye:
 - buscador/catalogo de POIs
 - guardado y recuperacion de rutas en MySQL
 - panel de administrador para empresas y usuarios
+- login funcional con JWT
 - importacion de POIs a MySQL
 - interfaz responsive con modo claro/oscuro e idioma ES/EN
 
-Todavia no hay login JWT real activado. El panel admin y las vistas por rol existen como base funcional, pero el control de acceso por usuario real es el siguiente paso.
+El login JWT ya esta activo. Cada usuario entra con su email/password y la app muestra automaticamente la vista correspondiente a su rol.
 
 ## Estructura principal
 
@@ -165,6 +166,7 @@ Tecnologias:
 - Express
 - MySQL con `mysql2`
 - `bcryptjs` para guardar passwords hasheadas
+- `jsonwebtoken` para sesiones JWT
 - comunicacion interna con Python
 
 Endpoints principales:
@@ -180,6 +182,8 @@ GET    /api/admin
 POST   /api/admin/clients
 POST   /api/admin/users
 PATCH  /api/admin/users/:userId/status
+POST   /api/auth/login
+GET    /api/auth/me
 ```
 
 ## Frontend
@@ -289,6 +293,7 @@ cors
 csv-parse
 dotenv
 express
+jsonwebtoken
 mysql2
 ```
 
@@ -388,8 +393,7 @@ uso_ml_en_el_recomendador.txt
 
 Los siguientes pasos naturales son:
 
-- implementar login real con JWT
-- proteger endpoints por rol
+- extender la proteccion por rol al resto de endpoints privados
 - asociar rutas a empresa y usuario autenticado
 - permitir que empresa asigne rutas a usuarios
 - crear panel de usuario final conectado a BDD

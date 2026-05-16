@@ -162,7 +162,7 @@ client  -> empresa/cliente que crea rutas y usuarios finales
 user    -> usuario final que consulta rutas asignadas
 ```
 
-Actualmente el panel admin ya permite crear empresas y usuarios, pero el login JWT real todavia no esta activado.
+Actualmente el panel admin permite crear empresas y usuarios, y el login JWT ya esta activo en backend/frontend.
 
 ## Panel admin y BDD
 
@@ -296,7 +296,5 @@ La BDD ya esta preparada para:
 
 Falta como siguiente paso:
 
-- login real con JWT
-- middleware de autenticacion
-- permisos por rol
+- extender permisos por rol a todos los endpoints privados
 - asignacion real de rutas a usuarios autenticados

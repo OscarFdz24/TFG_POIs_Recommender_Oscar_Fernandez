@@ -55,7 +55,7 @@ Panel de administracion inicial:
 - activar/desactivar usuarios
 - buscador de empresas y usuarios
 
-Todavia no esta protegido por login real. Cuando se implemente JWT, esta vista quedara limitada al rol `admin`.
+Esta vista queda asociada al rol `admin` mediante login JWT.
 
 ### Empresa
 
@@ -103,6 +103,8 @@ GET    /api/admin
 POST   /api/admin/clients
 POST   /api/admin/users
 PATCH  /api/admin/users/:userId/status
+POST   /api/auth/login
+GET    /api/auth/me
 ```
 
 ## Frontend
@@ -199,6 +201,7 @@ cors
 csv-parse
 dotenv
 express
+jsonwebtoken
 mysql2
 ```
 
@@ -239,4 +242,4 @@ uso_ml_en_el_recomendador.txt
 
 ## Estado actual
 
-La web ya esta conectada con el recomendador hibrido real y con MySQL para persistencia. El siguiente salto importante es activar login JWT y usar los roles reales para mostrar automaticamente Admin, Empresa o Usuario.
+La web ya esta conectada con el recomendador hibrido real, MySQL y login JWT. El siguiente salto importante es usar la sesion real para asignar rutas a usuarios finales y proteger todos los flujos privados.

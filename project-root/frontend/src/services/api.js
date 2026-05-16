@@ -1,7 +1,20 @@
+let authToken = window.localStorage.getItem("auth-token") || "";
+
+export function setAuthToken(token) {
+  authToken = token || "";
+
+  if (authToken) {
+    window.localStorage.setItem("auth-token", authToken);
+  } else {
+    window.localStorage.removeItem("auth-token");
+  }
+}
+
 async function request(path, options = {}) {
   const response = await fetch(path, {
     headers: {
       "Content-Type": "application/json",
+      ...(authToken ? { Authorization: `Bearer ${authToken}` } : {}),
       ...(options.headers || {}),
     },
     ...options,
@@ -18,6 +31,17 @@ async function request(path, options = {}) {
 
 export function fetchHealth() {
   return request("/api/health");
+}
+
+export function login(payload) {
+  return request("/api/auth/login", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function fetchCurrentUser() {
+  return request("/api/auth/me");
 }
 
 export function fetchCategories() {

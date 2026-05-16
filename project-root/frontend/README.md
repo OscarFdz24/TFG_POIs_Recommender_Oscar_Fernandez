@@ -79,7 +79,7 @@ Panel para administracion:
 - tablas con scroll interno
 - responsive para desktop, tablet y movil
 
-Actualmente los datos de usuario conectado son provisionales hasta activar login real.
+Los datos de usuario conectado vienen del login JWT mediante `/api/auth/me`.
 
 ### Empresa
 
@@ -131,6 +131,8 @@ Funciones principales:
 
 ```text
 fetchHealth
+login
+fetchCurrentUser
 fetchCategories
 fetchPois
 recommendRoute
@@ -214,7 +216,6 @@ El frontend ya esta conectado con:
 
 Siguiente paso:
 
-- login real
-- consumir usuario autenticado
-- mostrar vistas segun rol
-- eliminar selector temporal Admin/Empresa/Usuario
+- asignar rutas a usuarios autenticados
+- mostrar rutas del usuario desde BDD
+- completar permisos por rol en todos los flujos privados

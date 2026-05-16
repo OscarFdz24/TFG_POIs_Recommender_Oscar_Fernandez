@@ -387,6 +387,95 @@ select {
   white-space: nowrap;
 }
 
+.logout-button {
+  padding: 8px 11px;
+  white-space: nowrap;
+}
+
+.login-page {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 18% 18%, rgba(184, 108, 255, 0.16), transparent 28%),
+    var(--bg);
+}
+
+.login-shell {
+  width: min(100%, 460px);
+  display: grid;
+  gap: 18px;
+  padding: 24px;
+}
+
+.login-brand {
+  display: grid;
+  grid-template-columns: 54px minmax(0, 1fr);
+  gap: 14px;
+  align-items: center;
+}
+
+.login-brand .brand-logo {
+  width: 54px;
+  height: 54px;
+}
+
+.login-brand h1,
+.login-brand p {
+  margin: 0;
+}
+
+.login-brand h1 {
+  font-family: Georgia, "Times New Roman", serif;
+  font-size: 1.65rem;
+}
+
+.login-brand p:not(.eyebrow),
+.login-demo-box {
+  color: var(--muted);
+}
+
+.login-form {
+  display: grid;
+  gap: 12px;
+}
+
+.login-form label,
+.login-form label span {
+  display: grid;
+  gap: 7px;
+}
+
+.login-form label span {
+  font-weight: 800;
+}
+
+.login-form input {
+  min-height: 46px;
+}
+
+.login-demo-box {
+  display: grid;
+  gap: 6px;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: color-mix(in srgb, var(--panel-strong) 84%, transparent);
+}
+
+.login-demo-box code {
+  overflow-wrap: anywhere;
+  color: var(--text);
+}
+
+.login-controls {
+  display: flex;
+  gap: 8px;
+  justify-content: space-between;
+  flex-wrap: wrap;
+}
+
 .topbar-controls {
   display: flex;
   align-items: center;

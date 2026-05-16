@@ -1,16 +1,20 @@
 import { useEffect, useState } from "react";
 import HomePage from "./pages/HomePage.jsx";
+import LoginPage from "./components/LoginPage.jsx";
 import {
   createAdminClient,
   createAdminUser,
   fetchCategories,
   fetchAdminData,
+  fetchCurrentUser,
   fetchHealth,
   fetchPois,
   fetchSavedRoute,
   fetchStreetRoute,
+  login,
   recommendRoute,
   saveRoute,
+  setAuthToken,
   updateAdminUserStatus,
 } from "./services/api.js";
 import { translations } from "./i18n/translations.js";
@@ -21,6 +25,7 @@ const DEFAULT_START = {
 };
 
 const USER_ROUTES_STORAGE_KEY = "user-saved-routes";
+const AUTH_TOKEN_STORAGE_KEY = "auth-token";
 
 function haversineDistanceKm(origin, destination) {
   const radiusKm = 6371;
@@ -80,6 +85,10 @@ export default function App() {
   const [savingRoute, setSavingRoute] = useState(false);
   const [loadingSavedRoute, setLoadingSavedRoute] = useState(false);
   const [appMode, setAppMode] = useState("company");
+  const [currentUser, setCurrentUser] = useState(null);
+  const [checkingSession, setCheckingSession] = useState(true);
+  const [authLoading, setAuthLoading] = useState(false);
+  const [authError, setAuthError] = useState("");
   const [adminData, setAdminData] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
@@ -100,6 +109,18 @@ export default function App() {
 
   const t = translations[language] || translations.es;
 
+  function getModeFromUser(user) {
+    if (user?.role?.code === "admin") {
+      return "admin";
+    }
+
+    if (user?.role?.code === "user") {
+      return "user";
+    }
+
+    return "company";
+  }
+
   useEffect(() => {
     document.documentElement.dataset.theme = theme;
     window.localStorage.setItem("app-theme", theme);
@@ -113,6 +134,28 @@ export default function App() {
   useEffect(() => {
     window.localStorage.setItem(USER_ROUTES_STORAGE_KEY, JSON.stringify(userRoutes));
   }, [userRoutes]);
+
+  useEffect(() => {
+    async function restoreSession() {
+      if (!window.localStorage.getItem(AUTH_TOKEN_STORAGE_KEY)) {
+        setCheckingSession(false);
+        return;
+      }
+
+      try {
+        const response = await fetchCurrentUser();
+        setCurrentUser(response.user);
+        setAppMode(getModeFromUser(response.user));
+      } catch {
+        setAuthToken("");
+        setCurrentUser(null);
+      } finally {
+        setCheckingSession(false);
+      }
+    }
+
+    restoreSession();
+  }, []);
 
   useEffect(() => {
     async function bootstrap() {
@@ -142,12 +185,12 @@ export default function App() {
   }, [categories.length]);
 
   useEffect(() => {
-    if (appMode !== "admin" || adminData) {
+    if (appMode !== "admin" || adminData || !currentUser) {
       return;
     }
 
     handleLoadAdminData();
-  }, [appMode, adminData]);
+  }, [appMode, adminData, currentUser]);
 
   useEffect(() => {
     if (!routeData?.route?.length) {
@@ -308,6 +351,37 @@ export default function App() {
     } finally {
       setCatalogLoading(false);
     }
+  }
+
+  async function handleLogin(credentials) {
+    setAuthLoading(true);
+    setAuthError("");
+    setError("");
+
+    try {
+      const response = await login(credentials);
+      setAuthToken(response.token);
+      setCurrentUser(response.user);
+      setAppMode(getModeFromUser(response.user));
+      setAdminData(null);
+      setRouteData(null);
+      setSelectedPoi(null);
+    } catch (requestError) {
+      setAuthError(requestError.message || t.auth.loginError);
+      setAuthToken("");
+      setCurrentUser(null);
+    } finally {
+      setAuthLoading(false);
+    }
+  }
+
+  function handleLogout() {
+    setAuthToken("");
+    setCurrentUser(null);
+    setAdminData(null);
+    setRouteData(null);
+    setSelectedPoi(null);
+    setSavedRouteInfo(null);
   }
 
   async function handleLoadAdminData() {
@@ -509,6 +583,8 @@ export default function App() {
         name: `${t.saved.defaultRouteName} ${new Date().toLocaleString()}`,
         recommendation: routeData,
         navigation: routeData.navigation || null,
+        createdByUserId: currentUser?.id,
+        clientId: currentUser?.client?.id,
       });
       setSavedRouteInfo(saved);
     } catch (requestError) {
@@ -556,7 +632,9 @@ export default function App() {
         totalPois: saved.totalPois,
         message: t.saved.loaded,
       });
-      setAppMode("user");
+      if (currentUser?.role?.code === "user") {
+        setAppMode("user");
+      }
     } catch (requestError) {
       setError(requestError.message || t.saved.loadError);
       setRouteData(null);
@@ -656,6 +734,31 @@ export default function App() {
     await applyEditedRoute([...currentRoute, poi]);
   }
 
+  if (checkingSession) {
+    return (
+      <main className="login-page">
+        <section className="panel login-shell">
+          <p>{t.auth.checkingSession}</p>
+        </section>
+      </main>
+    );
+  }
+
+  if (!currentUser) {
+    return (
+      <LoginPage
+        error={authError}
+        language={language}
+        loading={authLoading}
+        onLanguageChange={setLanguage}
+        onLogin={handleLogin}
+        onThemeChange={setTheme}
+        t={t}
+        theme={theme}
+      />
+    );
+  }
+
   return (
     <HomePage
       adminData={adminData}
@@ -671,6 +774,7 @@ export default function App() {
       loading={loading}
       loadingSavedRoute={loadingSavedRoute}
       appMode={appMode}
+      currentUser={currentUser}
       onAppModeChange={setAppMode}
       onCreateAdminClient={handleCreateAdminClient}
       onCreateAdminUser={handleCreateAdminUser}
@@ -693,6 +797,7 @@ export default function App() {
       onSubmit={handleSubmit}
       onThemeChange={setTheme}
       onToggleAdminUserStatus={handleToggleAdminUserStatus}
+      onLogout={handleLogout}
       routeData={routeData}
       routeDisplayMode={routeDisplayMode}
       manualPois={manualPois}

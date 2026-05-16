@@ -17,6 +17,7 @@ Node.js
 Express
 MySQL
 bcryptjs
+jsonwebtoken
 ```
 
 Dependencias actuales:
@@ -27,6 +28,7 @@ cors
 csv-parse
 dotenv
 express
+jsonwebtoken
 mysql2
 ```
 
@@ -92,6 +94,21 @@ GET /api/health
 ```
 
 Comprueba que el backend esta levantado.
+
+### Autenticacion
+
+```text
+POST /api/auth/login
+GET  /api/auth/me
+```
+
+`POST /api/auth/login` valida email/password con `bcryptjs` y devuelve un token JWT.
+
+`GET /api/auth/me` devuelve el usuario autenticado a partir del token enviado en:
+
+```text
+Authorization: Bearer <token>
+```
 
 ### POIs y categorias
 
@@ -180,13 +197,13 @@ El backend ya tiene:
 - tabla `roles`
 - `password_hash`
 - creacion de usuarios con bcrypt
+- login con JWT
+- endpoint `/api/auth/me`
 
 Todavia falta:
 
-- endpoint de login
-- JWT
-- middleware de autenticacion
-- proteccion por rol
+- extender permisos por rol al resto de endpoints privados
+- asignar rutas a usuarios finales autenticados
 
 ## Ejecutar
 
