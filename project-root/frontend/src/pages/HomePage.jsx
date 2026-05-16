@@ -4,9 +4,13 @@ import RouteMap from "../components/RouteMap.jsx";
 import AppSidebar from "../components/AppSidebar.jsx";
 import PoiCatalog from "../components/PoiCatalog.jsx";
 import RouteEditor from "../components/RouteEditor.jsx";
+import AdminPanel from "../components/AdminPanel.jsx";
 import appLogo from "../assets/icono_web.png";
 
 export default function HomePage({
+  adminData,
+  adminLoading,
+  adminMessage,
   categories,
   catalogLoading,
   catalogPois,
@@ -19,7 +23,10 @@ export default function HomePage({
   appMode,
   userRoutes,
   onAppModeChange,
+  onCreateAdminClient,
+  onCreateAdminUser,
   onLanguageChange,
+  onLoadAdminData,
   onLoadSavedRoute,
   onManualPoiAdd,
   onManualPoiRemove,
@@ -36,6 +43,7 @@ export default function HomePage({
   onBuildManualRoute,
   onSubmit,
   onThemeChange,
+  onToggleAdminUserStatus,
   routeData,
   routeDisplayMode,
   manualPois,
@@ -50,10 +58,12 @@ export default function HomePage({
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [routeCode, setRouteCode] = useState("");
   const [companyTool, setCompanyTool] = useState("smart");
+  const isAdminMode = appMode === "admin";
   const isUserMode = appMode === "user";
-  const isSmartTool = !isUserMode && companyTool === "smart";
-  const isManualTool = !isUserMode && companyTool === "manual";
-  const isEditorTool = !isUserMode && companyTool === "editor";
+  const isCompanyMode = appMode === "company";
+  const isSmartTool = isCompanyMode && companyTool === "smart";
+  const isManualTool = isCompanyMode && companyTool === "manual";
+  const isEditorTool = isCompanyMode && companyTool === "editor";
   const layoutMode = isSmartTool
     ? sidebarOpen
       ? "sidebar-open"
@@ -61,6 +71,11 @@ export default function HomePage({
     : "no-sidebar";
   const visibleRouteData =
     isManualTool && routeData?.meta?.mode !== "manual-catalog-route" ? null : routeData;
+  const currentUser = isAdminMode
+    ? { name: "Admin Demo", email: "admin.demo@example.com", role: t.modes.admin }
+    : isUserMode
+      ? { name: "Usuario Demo", email: "usuario.demo@example.com", role: t.modes.user }
+      : { name: "Empresa Demo", email: "empresa.demo@example.com", role: t.modes.company };
 
   function submitRouteCode(event) {
     event.preventDefault();
@@ -124,9 +139,55 @@ export default function HomePage({
         </div>
       </div>
 
+      {adminData?.stats && (
+        <div className="mobile-admin-summary">
+          <div className="mobile-session-card">
+            <strong>{currentUser.name}</strong>
+            <span>{currentUser.email}</span>
+          </div>
+          <div className="mobile-metrics-strip">
+            <span>
+              <small>{t.admin.stats.clients}</small>
+              <strong>{adminData.stats.totalClients ?? 0}</strong>
+            </span>
+            <span>
+              <small>{t.admin.stats.users}</small>
+              <strong>{adminData.stats.totalUsers ?? 0}</strong>
+            </span>
+            <span>
+              <small>{t.admin.stats.activeUsers}</small>
+              <strong>{adminData.stats.activeUsers ?? 0}</strong>
+            </span>
+            <span>
+              <small>{t.admin.stats.routes}</small>
+              <strong>{adminData.stats.totalRoutes ?? 0}</strong>
+            </span>
+            <span>
+              <small>{t.admin.stats.pois}</small>
+              <strong>{adminData.stats.totalPois ?? 0}</strong>
+            </span>
+          </div>
+        </div>
+      )}
+
       <div className="content-toolbar">
-        <div className="mode-toolbar">
-          <div className="compact-control" aria-label={t.modes.label}>
+        <div className="toolbar-left">
+          <div className="topbar-brand toolbar-brand">
+            <img className="brand-logo" src={appLogo} alt="" />
+            <div>
+              <strong>{t.topbar.title}</strong>
+              <span>{t.topbar.subtitle}</span>
+            </div>
+          </div>
+
+          <div className="compact-control dev-mode-switch" aria-label={t.modes.label}>
+            <button
+              className={appMode === "admin" ? "active" : ""}
+              onClick={() => onAppModeChange("admin")}
+              type="button"
+            >
+              {t.modes.admin}
+            </button>
             <button
               className={appMode === "company" ? "active" : ""}
               onClick={() => onAppModeChange("company")}
@@ -154,49 +215,83 @@ export default function HomePage({
               <span aria-hidden="true">☰</span>
             </button>
           )}
+
+          <div className="toolbar-inline-controls">
+            <div className="topbar-status" title={t.app.backend}>
+              <span className={health?.status === "ok" ? "status-dot ok" : "status-dot"} />
+              <span>{health?.status === "ok" ? t.app.backendActive : t.app.backendOffline}</span>
+            </div>
+
+            <div className="compact-control" aria-label={t.controls.theme}>
+              <button
+                className={theme === "dark" ? "active" : ""}
+                onClick={() => onThemeChange("dark")}
+                title={t.controls.themeDark}
+                type="button"
+              >
+                {t.controls.themeDarkShort}
+              </button>
+              <button
+                className={theme === "light" ? "active" : ""}
+                onClick={() => onThemeChange("light")}
+                title={t.controls.themeLight}
+                type="button"
+              >
+                {t.controls.themeLightShort}
+              </button>
+            </div>
+
+            <div className="compact-control" aria-label={t.controls.language}>
+              <button
+                className={language === "es" ? "active" : ""}
+                onClick={() => onLanguageChange("es")}
+                type="button"
+              >
+                {t.controls.languageEs}
+              </button>
+              <button
+                className={language === "en" ? "active" : ""}
+                onClick={() => onLanguageChange("en")}
+                type="button"
+              >
+                {t.controls.languageEn}
+              </button>
+            </div>
+          </div>
         </div>
 
         <div className="content-toolbar-controls">
-          <div className="topbar-status" title={t.app.backend}>
-            <span className={health?.status === "ok" ? "status-dot ok" : "status-dot"} />
-            <span>{health?.status === "ok" ? t.app.backendActive : t.app.backendOffline}</span>
+          {adminData?.stats && (
+            <div className="topbar-metrics" aria-label={t.admin.title}>
+              <span>
+                <small>{t.admin.stats.clients}</small>
+                <strong>{adminData.stats.totalClients ?? 0}</strong>
+              </span>
+              <span>
+                <small>{t.admin.stats.users}</small>
+                <strong>{adminData.stats.totalUsers ?? 0}</strong>
+              </span>
+              <span>
+                <small>{t.admin.stats.activeUsers}</small>
+                <strong>{adminData.stats.activeUsers ?? 0}</strong>
+              </span>
+              <span>
+                <small>{t.admin.stats.routes}</small>
+                <strong>{adminData.stats.totalRoutes ?? 0}</strong>
+              </span>
+              <span>
+                <small>{t.admin.stats.pois}</small>
+                <strong>{adminData.stats.totalPois ?? 0}</strong>
+              </span>
+            </div>
+          )}
+
+          <div className="session-card" title={currentUser.email}>
+            <span>{currentUser.role}</span>
+            <strong>{currentUser.name}</strong>
+            <small>{currentUser.email}</small>
           </div>
 
-          <div className="compact-control" aria-label={t.controls.theme}>
-            <button
-              className={theme === "dark" ? "active" : ""}
-              onClick={() => onThemeChange("dark")}
-              title={t.controls.themeDark}
-              type="button"
-            >
-              {t.controls.themeDarkShort}
-            </button>
-            <button
-              className={theme === "light" ? "active" : ""}
-              onClick={() => onThemeChange("light")}
-              title={t.controls.themeLight}
-              type="button"
-            >
-              {t.controls.themeLightShort}
-            </button>
-          </div>
-
-          <div className="compact-control" aria-label={t.controls.language}>
-            <button
-              className={language === "es" ? "active" : ""}
-              onClick={() => onLanguageChange("es")}
-              type="button"
-            >
-              {t.controls.languageEs}
-            </button>
-            <button
-              className={language === "en" ? "active" : ""}
-              onClick={() => onLanguageChange("en")}
-              type="button"
-            >
-              {t.controls.languageEn}
-            </button>
-          </div>
         </div>
       </div>
 
@@ -213,19 +308,21 @@ export default function HomePage({
 
       {!loading && (
         <>
-          {!isSmartTool && (
+          {!isSmartTool && !isAdminMode && (
             <section className="view-brand-bar">
               <div className="topbar-brand">
                 <img className="brand-logo" src={appLogo} alt="" />
                 <div>
                   <strong>{t.topbar.title}</strong>
-                  <span>{isUserMode ? t.modes.user : t.modes.company}</span>
+                  <span>
+                    {isAdminMode ? t.modes.admin : isUserMode ? t.modes.user : t.modes.company}
+                  </span>
                 </div>
               </div>
             </section>
           )}
 
-          {!isUserMode && (
+          {isCompanyMode && (
             <section className="company-tools-panel">
               <div className="company-tool-tabs" aria-label={t.companyTools.label}>
                 <button
@@ -252,6 +349,19 @@ export default function HomePage({
               </div>
               <p>{t.companyTools.description[companyTool]}</p>
             </section>
+          )}
+
+          {isAdminMode && (
+            <AdminPanel
+              adminData={adminData}
+              loading={adminLoading}
+              message={adminMessage}
+              onCreateClient={onCreateAdminClient}
+              onCreateUser={onCreateAdminUser}
+              onRefresh={onLoadAdminData}
+              onToggleUserStatus={onToggleAdminUserStatus}
+              t={t}
+            />
           )}
 
           {isUserMode && (
@@ -323,6 +433,7 @@ export default function HomePage({
             </section>
           )}
 
+          {!isAdminMode && (
           <section className="workspace-grid">
             <div className="workspace-main">
               {isManualTool && (
@@ -459,6 +570,7 @@ export default function HomePage({
               )}
             </div>
           </section>
+          )}
         </>
       )}
       </main>

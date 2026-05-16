@@ -1,96 +1,201 @@
-# Base de datos del proyecto
+# Base de datos MySQL
 
-Esta carpeta contiene los scripts SQL iniciales para preparar la base de datos del sistema de recomendacion de rutas de POIs.
+Esta carpeta contiene todo lo relacionado con la base de datos MySQL del proyecto.
 
-La idea es separar la parte de persistencia del resto del proyecto para poder revisarla y ajustarla antes de ejecutarla en MySQL Workbench.
+La BDD se usa como capa de persistencia y gestion:
 
-## Objetivo inicial
+- empresas/clientes
+- usuarios y roles
+- POIs importados
+- rutas guardadas
+- POIs incluidos en cada ruta
+- JSON con preferencias, resumen, ruta y navegacion
+- estructura preparada para futuras descripciones generadas por IA
 
-La primera version de la BBDD esta pensada para:
+Para el MVP actual, el recomendador sigue leyendo el dataset hibrido desde parquet/CSV. MySQL no sustituye todavia al dataset del modelo.
 
-- guardar usuarios
-- preparar roles basicos
-- guardar clientes, por ejemplo hoteles
-- guardar POIs
-- guardar rutas generadas
-- guardar los POIs incluidos en cada ruta y su orden
-- guardar preferencias y resumen de la ruta en JSON
-- guardar informacion de navegacion/calculo peatonal cuando exista, por ejemplo
-  la respuesta de OSRM usada para pintar la ruta en el mapa
+## Archivos
 
-## Orden recomendado de ejecucion
+```text
+database/
+|-- 01_create_database.sql
+|-- 02_create_tables.sql
+|-- 03_seed_initial_data.sql
+|-- 04_seed_auth_demo_users.sql
+|-- db_config.example.json
+|-- db_config.local.json
+|-- import_pois_to_mysql.py
+`-- README.md
+```
 
-Cuando se revise y se quiera ejecutar en MySQL Workbench, el orden seria:
+## Orden recomendado
+
+En MySQL Workbench:
 
 ```text
 01_create_database.sql
 02_create_tables.sql
 03_seed_initial_data.sql
+04_seed_auth_demo_users.sql
 ```
 
-## Scripts
+Despues, desde consola:
+
+```powershell
+python database/import_pois_to_mysql.py
+```
+
+## Scripts SQL
+
+### 01_create_database.sql
+
+Crea la base de datos:
 
 ```text
-01_create_database.sql
+pois_recommender_bcn
 ```
 
-Crea la base de datos y la selecciona con `USE`.
+### 02_create_tables.sql
+
+Crea las tablas principales:
+
+- `roles`
+- `clients`
+- `users`
+- `pois`
+- `routes`
+- `route_pois`
+- `poi_generated_descriptions`
+
+Relaciones principales:
 
 ```text
-02_create_tables.sql
+users.role_id -> roles.id
+users.client_id -> clients.id
+routes.created_by_user_id -> users.id
+routes.assigned_to_user_id -> users.id
+routes.client_id -> clients.id
+route_pois.route_id -> routes.id
+route_pois.poi_id -> pois.id
 ```
 
-Crea las tablas principales y sus relaciones.
+### 03_seed_initial_data.sql
+
+Inserta datos base:
+
+- roles iniciales
+- cliente demo inicial
+- usuarios demo iniciales
+
+### 04_seed_auth_demo_users.sql
+
+Actualiza/crea usuarios preparados para pruebas de login:
 
 ```text
-03_seed_initial_data.sql
+admin.demo@example.com    / demo1234
+empresa.demo@example.com  / demo1234
+usuario.demo@example.com  / demo1234
+cliente.demo@example.com  / demo1234
 ```
 
-Inserta datos iniciales minimos, como roles y un usuario/cliente demo.
+La password no se guarda en texto plano. Se guarda en:
 
 ```text
-import_pois_to_mysql.py
+users.password_hash
 ```
 
-Importa los POIs desde `data/pois_barcelona_hibrido.parquet` a la tabla `pois`.
-Si falta la libreria `mysql-connector-python`, intenta instalarla
-automaticamente en el entorno Python activo.
-Si el entorno Python no puede leer parquet porque falta `pyarrow` o
-`fastparquet`, usa automaticamente `data/pois_barcelona_hibrido.csv` como
-alternativa.
+como hash bcrypt.
 
-Este archivo no crea el modelo ni recalcula el recomendador. Su funcion es
-copiar los POIs enriquecidos que ya existen en el dataset hibrido a MySQL, para
-que la base de datos tenga una tabla `pois` completa y preparada para futuras
-funcionalidades de persistencia.
+## Modelo de usuarios y empresas
 
-El flujo interno del importador es:
+La tabla `clients` representa la empresa como entidad:
 
 ```text
-1. Lee la configuracion de conexion desde database/db_config.local.json
-2. Carga el dataset hibrido desde parquet
-3. Si parquet no esta disponible en el entorno, usa el CSV equivalente
-4. Recorre cada POI del dataset
-5. Limpia valores nulos, NaN, arrays y tipos propios de pandas/numpy
-6. Convierte cada fila al formato de la tabla pois
-7. Traduce cluster_geo a una zona entendible de Barcelona
-8. Guarda tambien la fila original completa en raw_data como JSON
-9. Inserta cada POI en MySQL
-10. Si el POI ya existe, lo actualiza en vez de duplicarlo
+clients
+id
+name
+client_type
+contact_email
+contact_phone
+notes
 ```
 
-Por eso se puede ejecutar mas de una vez sin duplicar POIs, ya que usa
-`ON DUPLICATE KEY UPDATE`.
+La tabla `users` representa las cuentas que pueden iniciar sesion:
 
-## Configuracion de conexion a MySQL
+```text
+users
+id
+role_id
+client_id
+name
+email
+password_hash
+is_active
+```
 
-La forma mas sencilla para este proyecto es tener la configuracion en codigo en:
+Una empresa no tiene password directamente. La password pertenece al usuario asociado.
+
+Ejemplo:
+
+```text
+clients
+id: 4
+name: Barcelona Tours
+
+users
+id: 10
+role: client
+client_id: 4
+email: acceso@barcelonatours.com
+password_hash: bcrypt(...)
+```
+
+Asi una misma empresa podra tener varios usuarios en el futuro.
+
+## Roles
+
+Roles actuales:
+
+```text
+admin   -> administra empresas, usuarios y estado general
+client  -> empresa/cliente que crea rutas y usuarios finales
+user    -> usuario final que consulta rutas asignadas
+```
+
+Actualmente el panel admin ya permite crear empresas y usuarios, pero el login JWT real todavia no esta activado.
+
+## Panel admin y BDD
+
+El panel admin usa estos endpoints del backend:
+
+```text
+GET    /api/admin
+POST   /api/admin/clients
+POST   /api/admin/users
+PATCH  /api/admin/users/:userId/status
+```
+
+Funcionalidades actuales:
+
+- ver numero de empresas, usuarios, usuarios activos, rutas y POIs
+- crear empresa
+- crear usuario de acceso de empresa al crear empresa
+- crear usuarios manualmente
+- asignar usuario a empresa
+- activar/desactivar usuarios
+- buscar empresas y usuarios desde frontend
+
+El backend usa `bcryptjs` para guardar passwords hasheadas.
+
+## Configuracion local
+
+El backend y el importador leen:
 
 ```text
 database/db_config.local.json
 ```
 
-Contenido esperado:
+Ejemplo:
 
 ```json
 {
@@ -102,75 +207,96 @@ Contenido esperado:
 }
 ```
 
-Este archivo es local y esta ignorado por Git para no subir contrasenas. Tambien
-queda un archivo de ejemplo:
+El archivo de referencia es:
 
 ```text
 database/db_config.example.json
 ```
 
-El script `import_pois_to_mysql.py` lee automaticamente
-`database/db_config.local.json`. Si la password sigue con el texto de ejemplo,
-la pedira por consola para evitar usar una credencial falsa.
+`db_config.local.json` no deberia subirse con credenciales reales.
 
-## Importar POIs del dataset hibrido
+## Importar POIs
 
-Antes de importar todos los POIs, se puede hacer una prueba sin insertar datos:
+Script:
+
+```text
+database/import_pois_to_mysql.py
+```
+
+Prueba sin insertar:
 
 ```powershell
 python database/import_pois_to_mysql.py --dry-run --limit 5
 ```
 
-Ese comando solo comprueba que el dataset se puede leer y que los registros se
-preparan correctamente. No se conecta a MySQL ni inserta filas.
-
-Para importar todos los POIs:
+Importacion completa:
 
 ```powershell
 python database/import_pois_to_mysql.py
 ```
 
-Este comando si se conecta a MySQL e inserta/actualiza los POIs en la tabla
-`pois`.
-
-Si se quiere importar solo una parte para probar contra la BBDD:
+Importacion parcial:
 
 ```powershell
 python database/import_pois_to_mysql.py --limit 10
 ```
 
-Si se quiere pasar la configuracion de MySQL por variables de entorno:
+El importador:
 
-```powershell
-$env:MYSQL_HOST="localhost"
-$env:MYSQL_PORT="3306"
-$env:MYSQL_DATABASE="pois_recommender_bcn"
-$env:MYSQL_USER="root"
-$env:MYSQL_PASSWORD="tu_password"
-python database/import_pois_to_mysql.py
-```
+1. lee `db_config.local.json`
+2. carga `data/pois_barcelona_hibrido.parquet`
+3. si parquet no esta disponible, usa `data/pois_barcelona_hibrido.csv`
+4. limpia valores nulos, arrays y tipos de pandas/numpy
+5. convierte cada fila al formato de la tabla `pois`
+6. asigna zona turistica a partir de `cluster_geo`
+7. guarda la fila original completa en `raw_data`
+8. inserta o actualiza con `ON DUPLICATE KEY UPDATE`
 
-Si `MYSQL_PASSWORD` no esta definido, el script lo pedira por consola.
+Se puede ejecutar varias veces sin duplicar POIs.
 
-En condiciones normales, para trabajar en local con Workbench, no hace falta usar
-variables de entorno: basta con editar `database/db_config.local.json`.
+## Rutas guardadas
 
-## Nota importante
-
-Estos scripts son una primera propuesta. Antes de ejecutarlos conviene revisar:
-
-- nombres de tablas y columnas
-- roles definitivos
-- si los POIs se cargaran desde CSV/parquet o desde backend
-- si se quiere guardar toda la informacion de cada POI o solo referenciar su `poi_id`
-- estrategia de autenticacion y contrasenas
-
-La prioridad inicial no es montar un sistema complejo de usuarios, sino permitir:
+Las rutas se guardan en:
 
 ```text
-generar ruta -> guardarla -> recuperarla -> mostrarla otra vez en el mapa
+routes
+route_pois
 ```
 
-La tabla `routes` incluye `navigation_json` para guardar la informacion de ruta
-peatonal calculada en frontend, como geometria, distancia caminando, duracion y
-modo de visualizacion.
+`routes` guarda:
+
+- identificador publico `public_id`
+- usuario creador
+- usuario asignado
+- empresa
+- resumen de distancia/tiempo
+- preferencias JSON
+- ruta completa JSON
+- navegacion JSON
+- metadatos del modelo
+
+`route_pois` guarda:
+
+- orden de cada POI
+- snapshots de nombre/categoria/coordenadas
+- metricas de score, similitud y calidad
+- JSON del POI dentro de la ruta
+
+Esto permite recuperar una ruta aunque el dataset o el modelo cambien mas adelante.
+
+## Estado actual
+
+La BDD ya esta preparada para:
+
+- persistir rutas
+- importar POIs
+- gestionar empresas
+- gestionar usuarios
+- preparar login con bcrypt
+
+Falta como siguiente paso:
+
+- login real con JWT
+- middleware de autenticacion
+- permisos por rol
+- asignacion real de rutas a usuarios autenticados

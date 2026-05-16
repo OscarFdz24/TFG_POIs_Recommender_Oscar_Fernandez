@@ -1,164 +1,157 @@
 # Sistema hibrido de recomendacion de rutas de POIs en Barcelona
 
-Este proyecto corresponde a mi TFM y consiste en el desarrollo de un sistema inteligente para recomendar rutas personalizadas de puntos de interes en Barcelona.
+Este repositorio contiene mi TFM: un sistema inteligente para recomendar rutas personalizadas de puntos de interes en Barcelona.
 
-La idea no es recomendar POIs aislados, sino construir una ruta completa y viable para el usuario teniendo en cuenta preferencias, calidad de los lugares, similitud tematica, proximidad geografica y restricciones de tiempo/distancia.
+La idea principal no es recomendar POIs aislados, sino construir una ruta completa, viable y adaptada a las preferencias del usuario. Para ello se combinan senales de contenido, calidad, proximidad geografica y restricciones de ruta.
 
-## Objetivo del proyecto
+## Estado actual del proyecto
 
-El objetivo principal es crear un sistema de recomendacion hibrido capaz de:
-
-- recomendar POIs relevantes para el usuario
-- ordenar esos POIs como una ruta visitable
-- respetar restricciones de distancia y tiempo
-- combinar informacion textual, calidad y posicion geografica
-- integrar el modelo en una aplicacion web funcional
-
-El sistema final conecta:
+El proyecto ya tiene una primera version funcional de extremo a extremo:
 
 ```text
-Frontend React
-  -> Backend Node.js
-  -> Motor Python del recomendador hibrido
-  -> Dataset enriquecido de POIs
-  -> Ruta recomendada en mapa
+usuario/empresa/admin
+  -> frontend React
+  -> backend Node.js
+  -> motor Python del recomendador hibrido
+  -> dataset hibrido enriquecido
+  -> ruta en mapa + persistencia en MySQL
 ```
 
-## Estructura del repositorio
+Actualmente incluye:
+
+- recomendador hibrido real integrado con la web
+- generador inteligente de rutas
+- constructor manual de rutas
+- editor de rutas
+- buscador/catalogo de POIs
+- guardado y recuperacion de rutas en MySQL
+- panel de administrador para empresas y usuarios
+- importacion de POIs a MySQL
+- interfaz responsive con modo claro/oscuro e idioma ES/EN
+
+Todavia no hay login JWT real activado. El panel admin y las vistas por rol existen como base funcional, pero el control de acceso por usuario real es el siguiente paso.
+
+## Estructura principal
 
 ```text
 .
-├── data/
-│   ├── pois_barcelona_procesados.parquet
-│   ├── pois_barcelona_procesados.csv
-│   ├── pois_barcelona_hibrido.parquet
-│   └── pois_barcelona_hibrido.csv
-│
-├── src/
-│   ├── build_hybrid_dataset.py
-│   └── functions/
-│
-├── modelo/
-│   ├── 01_Baseline_Recommender.ipynb
-│   ├── 02_Content_Based_Recommender.ipynb
-│   ├── 03_Geographic_Clustering.ipynb
-│   ├── 04_Ranking_Adicional.ipynb
-│   ├── 05_Route_Optimization_Greedy.ipynb
-│   └── 06_Hybrid_Recommender_Route_System.ipynb
-│
-├── ml_service/
-│   └── recommend_route.py
-│
-├── project-root/
-│   ├── backend/
-│   ├── frontend/
-│   ├── docs/
-│   ├── app/
-│   ├── config/
-│   └── tests/
-│
-├── start-dev.ps1
-└── README.md
+|-- data/
+|   |-- pois_barcelona_hibrido.parquet
+|   |-- pois_barcelona_hibrido.csv
+|   |-- pois_barcelona_procesados.parquet
+|   `-- pois_barcelona_procesados.csv
+|
+|-- database/
+|   |-- 01_create_database.sql
+|   |-- 02_create_tables.sql
+|   |-- 03_seed_initial_data.sql
+|   |-- 04_seed_auth_demo_users.sql
+|   |-- import_pois_to_mysql.py
+|   `-- README.md
+|
+|-- ml_service/
+|   `-- recommend_route.py
+|
+|-- modelo/
+|   |-- 01_Baseline_Recommender.ipynb
+|   |-- 02_Content_Based_Recommender.ipynb
+|   |-- 03_Geographic_Clustering.ipynb
+|   |-- 04_Ranking_Adicional.ipynb
+|   |-- 05_Route_Optimization_Greedy.ipynb
+|   `-- 06_Hybrid_Recommender_Route_System.ipynb
+|
+|-- project-root/
+|   |-- backend/
+|   |-- frontend/
+|   |-- docs/
+|   `-- README.md
+|
+|-- src/
+|   `-- build_hybrid_dataset.py
+|
+|-- start-dev.ps1
+`-- README.md
 ```
 
-## Metodologia seguida
+## Metodologia
 
-El proyecto se ha desarrollado de forma incremental:
+El desarrollo se ha hecho de forma incremental:
 
 ```text
-exploracion y limpieza de datos
+limpieza y enriquecimiento de datos
 -> baseline de recomendacion
 -> recomendador basado en contenido con TF-IDF
 -> clustering geografico
--> analisis adicional de ranking/calidad
+-> ranking por calidad/relevancia
 -> optimizacion greedy de rutas
 -> sistema hibrido final
--> integracion web
+-> integracion backend/frontend
+-> persistencia MySQL
+-> panel admin y gestion inicial de usuarios
 ```
 
-Los notebooks documentan la parte experimental y de modelado. La logica final integrada en la web esta en:
+Los notebooks documentan la parte experimental. La version integrada en la web esta en:
 
 ```text
 ml_service/recommend_route.py
 ```
 
-## Sistema hibrido de recomendacion
+## Sistema hibrido
 
-El sistema se divide en dos fases.
+El recomendador tiene dos capas:
 
-### 1. Seleccion de candidatos
+1. Seleccion de candidatos:
+   - TF-IDF sobre `content_base`
+   - similitud coseno
+   - filtros por categorias, subcategorias, rating, zonas y restricciones
+   - calidad mediante `quality_signal`
+   - proximidad al origen
 
-Se calculan candidatos combinando:
+2. Construccion de ruta:
+   - heuristica greedy
+   - distancia maxima total
+   - tiempo maximo disponible
+   - distancia maxima por tramo
+   - numero minimo/maximo de POIs
+   - coherencia geografica con `cluster_geo`
 
-- similitud semantica con TF-IDF
-- calidad del POI mediante `quality_signal`
-- proximidad al punto inicial
-- filtros del usuario
-
-El score principal de esta fase es:
-
-```text
-hybrid_candidate_score =
-  0.45 * quality_norm +
-  0.35 * similarity_norm +
-  0.20 * start_proximity_norm
-```
-
-### 2. Construccion de ruta
-
-Con los candidatos seleccionados se construye una ruta usando una heuristica greedy.
-
-La ruta tiene en cuenta:
-
-- numero maximo de POIs
-- distancia maxima total
-- tiempo maximo disponible
-- distancia maxima entre tramos
-- retorno al origen
-- coherencia geografica mediante `cluster_geo`
-
-## Dataset hibrido
-
-El dataset final usado por el recomendador es:
+El dataset principal usado por el motor es:
 
 ```text
 data/pois_barcelona_hibrido.parquet
 ```
 
-Tambien hay una version CSV:
+El CSV equivalente se mantiene como alternativa:
 
 ```text
 data/pois_barcelona_hibrido.csv
 ```
 
-Este dataset se genera con:
+El dataset hibrido se genera con:
 
-```text
-src/build_hybrid_dataset.py
+```powershell
+python src/build_hybrid_dataset.py
 ```
 
-Incluye columnas como:
-
-- `content_base`
-- `quality_signal`
-- `cluster_geo`
-- `rating_filled`
-- `visit_duration_filled`
-- `score_norm`
-- `rating_norm`
-- `match_confidence_norm`
-
-El script de creacion del dataset no se ejecuta en cada recomendacion. Solo debe volver a ejecutarse si cambian los datos base o la logica de enriquecimiento.
+Este script no se ejecuta cada vez. Solo se vuelve a ejecutar si cambian los datos base o la logica de enriquecimiento.
 
 ## Aplicacion web
 
-La web esta dentro de:
+La aplicacion esta en:
 
 ```text
 project-root/
 ```
 
-### Backend
+Tiene tres vistas funcionales:
+
+- **Admin**: gestion de empresas, usuarios, estado y datos generales.
+- **Empresa**: generador inteligente, constructor manual y editor de rutas.
+- **Usuario**: carga y consulta de rutas guardadas/asignadas.
+
+En el futuro, estas vistas se seleccionaran automaticamente segun el rol tras login.
+
+## Backend
 
 Carpeta:
 
@@ -170,25 +163,26 @@ Tecnologias:
 
 - Node.js
 - Express
+- MySQL con `mysql2`
+- `bcryptjs` para guardar passwords hasheadas
+- comunicacion interna con Python
 
 Endpoints principales:
 
 ```text
-GET  /api/health
-GET  /api/pois
-GET  /api/categories
-POST /api/recommend-route
+GET    /api/health
+GET    /api/categories
+GET    /api/pois
+POST   /api/recommend-route
+POST   /api/routes
+GET    /api/routes/:publicId
+GET    /api/admin
+POST   /api/admin/clients
+POST   /api/admin/users
+PATCH  /api/admin/users/:userId/status
 ```
 
-El endpoint principal es:
-
-```text
-POST /api/recommend-route
-```
-
-Este endpoint recibe las preferencias del usuario, llama al motor Python y devuelve la ruta recomendada.
-
-### Frontend
+## Frontend
 
 Carpeta:
 
@@ -203,102 +197,64 @@ Tecnologias:
 - Leaflet
 - React Leaflet
 
-La interfaz permite:
+Funcionalidades:
 
-- introducir punto de inicio
-- seleccionar categorias y subcategorias
-- definir distancia maxima
-- definir numero maximo de POIs
-- definir tiempo disponible
-- definir rating minimo
-- visualizar la ruta en un mapa
-- consultar el detalle de cada POI recomendado
-
-## APIs utilizadas
-
-El proyecto usa tres niveles de comunicacion:
-
-### API propia del backend
-
-Base local:
-
-```text
-http://localhost:4000/api
-```
-
-Endpoints:
-
-- `/api/health`
-- `/api/pois`
-- `/api/categories`
-- `/api/recommend-route`
-
-### Comunicacion interna Node.js -> Python
-
-Node.js ejecuta:
-
-```text
-ml_service/recommend_route.py
-```
-
-y le envia las preferencias del usuario en JSON mediante `stdin`. Python responde con otro JSON mediante `stdout`.
-
-### API externa OSRM
-
-Se usa OSRM para calcular el trazado peatonal entre los POIs ya seleccionados por el modelo:
-
-```text
-https://router.project-osrm.org/route/v1/foot/
-```
-
-OSRM no recomienda POIs. Solo calcula la ruta caminando entre los puntos que ya ha decidido el recomendador hibrido.
+- mapa interactivo
+- sidebar de preferencias
+- modo claro/oscuro
+- idioma ES/EN
+- generador inteligente
+- constructor manual
+- editor de rutas
+- buscador de POIs
+- vista de usuario para recuperar rutas
+- panel admin responsive
 
 ## Base de datos MySQL
 
-El proyecto incluye una primera estructura de base de datos en:
+Carpeta:
 
 ```text
 database/
 ```
 
-Para el MVP del TFM, la BBDD se usa como capa de persistencia, no como fuente
-principal del modelo. Es decir:
+Uso actual:
+
+- roles
+- empresas/clientes
+- usuarios
+- POIs importados desde el dataset hibrido
+- rutas guardadas
+- POIs de cada ruta y su orden
+- JSON con preferencias, resumen, ruta y navegacion
+
+Para el MVP, el recomendador sigue leyendo el parquet/CSV hibrido. MySQL se usa para persistencia y gestion de usuarios/rutas.
+
+Orden recomendado:
 
 ```text
-parquet/csv hibrido -> recomendador Python
-MySQL -> usuarios, clientes, POIs importados y rutas guardadas
-```
-
-Los POIs se pueden cargar en MySQL con:
-
-```powershell
+01_create_database.sql
+02_create_tables.sql
+03_seed_initial_data.sql
+04_seed_auth_demo_users.sql
 python database/import_pois_to_mysql.py
 ```
 
-Antes se puede probar sin insertar datos:
-
-```powershell
-python database/import_pois_to_mysql.py --dry-run --limit 5
-```
-
-La configuracion local de MySQL se guarda en:
+Usuarios demo preparados:
 
 ```text
-database/db_config.local.json
+admin.demo@example.com    / demo1234
+empresa.demo@example.com  / demo1234
+usuario.demo@example.com  / demo1234
 ```
 
-Ese archivo queda ignorado por Git para no subir contrasenas. El archivo de
-referencia es:
+La password se guarda como hash bcrypt en `users.password_hash`.
 
-```text
-database/db_config.example.json
-```
-
-## Dependencias necesarias
+## Dependencias
 
 ### Python
 
-Version usada durante el desarrollo:
+Version usada:
 
 ```text
 Python 3.11
@@ -314,47 +270,21 @@ pyarrow
 matplotlib
 jupyter
 notebook
-flask
 mysql-connector-python
 ```
-
-Uso principal de cada una:
-
-- `pandas`: carga y manipulacion de datasets
-- `numpy`: operaciones numericas
-- `scikit-learn`: TF-IDF, similitud coseno y K-Means
-- `pyarrow`: lectura/escritura de parquet
-- `matplotlib`: visualizaciones en notebooks
-- `jupyter` / `notebook`: ejecucion de notebooks
-- `flask`: estructura Python previa conservada en `project-root/app`
-- `mysql-connector-python`: conexion desde Python a MySQL para importar los POIs a la BBDD
 
 Instalacion orientativa:
 
 ```powershell
-pip install pandas numpy scikit-learn pyarrow matplotlib jupyter notebook flask mysql-connector-python
-```
-
-Nota: para importar POIs a MySQL, `pyarrow` permite leer el fichero parquet. Si
-no esta instalado, el importador usa automaticamente el CSV hibrido equivalente.
-
-En mi entorno local el Python usado por el backend es:
-
-```text
-C:\Users\User\miniconda3\envs\master_ds_clean\python.exe
+pip install pandas numpy scikit-learn pyarrow matplotlib jupyter notebook mysql-connector-python
 ```
 
 ### Backend Node.js
 
-Carpeta:
+Dependencias actuales:
 
 ```text
-project-root/backend
-```
-
-Dependencias:
-
-```text
+bcryptjs
 cors
 csv-parse
 dotenv
@@ -371,13 +301,7 @@ npm install
 
 ### Frontend React
 
-Carpeta:
-
-```text
-project-root/frontend
-```
-
-Dependencias:
+Dependencias actuales:
 
 ```text
 react
@@ -397,26 +321,32 @@ npm install
 
 ## Ejecucion local
 
-La forma mas comoda de arrancar backend y frontend es desde la raiz del repositorio:
+Desde la raiz del repositorio:
 
 ```powershell
 .\start-dev.ps1
 ```
 
-Si PowerShell bloquea la ejecucion:
+Si PowerShell bloquea el script:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
 ```
 
-Esto abre:
+En Git Bash:
+
+```bash
+powershell.exe -ExecutionPolicy Bypass -File ./start-dev.ps1
+```
+
+URLs:
 
 ```text
 Backend:  http://localhost:4000
 Frontend: http://localhost:5173
 ```
 
-Comprobacion del backend:
+Comprobar backend:
 
 ```text
 http://localhost:4000/api/health
@@ -439,78 +369,33 @@ cd project-root/frontend
 npm run dev
 ```
 
-## Ejemplo de payload
-
-```json
-{
-  "startLocation": {
-    "lat": 41.4035,
-    "lng": 2.17437
-  },
-  "categories": ["religious"],
-  "subcategories": ["cathedral"],
-  "maxDistanceKm": 5,
-  "maxPois": 5,
-  "availableTimeMinutes": 240,
-  "minRating": 4
-}
-```
-
 ## Documentacion adicional
 
-Dentro de:
+En `project-root/docs/` hay documentos de apoyo para defensa y explicacion:
 
 ```text
-project-root/docs
-```
-
-hay varios documentos utiles:
-
-```text
-integracion_modelo_hibrido_web.txt
-flujo_usuario_modelo_hibrido_web.txt
 apis_del_proyecto.txt
-uso_ml_en_el_recomendador.txt
+auditoria_notebooks_modelado.md
+explicacion_modelo_hibrido_final.txt
+flujo_usuario_modelo_hibrido_web.txt
+historial_trabajo_2026-04-27.txt
+integracion_modelo_hibrido_web.txt
 preguntas_frecuentes_defensa.txt
+uso_ml_en_el_recomendador.txt
 ```
 
-Estos documentos explican:
+## Siguientes pasos
 
-- como se conecta la web con el modelo
-- que ocurre desde que el usuario introduce preferencias
-- que APIs se usan
-- como se aplica Machine Learning
-- posibles preguntas para la defensa del TFM
+Los siguientes pasos naturales son:
 
-## Estado actual
+- implementar login real con JWT
+- proteger endpoints por rol
+- asociar rutas a empresa y usuario autenticado
+- permitir que empresa asigne rutas a usuarios
+- crear panel de usuario final conectado a BDD
+- anadir tests de backend y recomendador
+- mejorar explicabilidad de POIs con textos enriquecidos
 
-El proyecto ya tiene una primera integracion funcional de extremo a extremo:
+## Idea principal
 
-```text
-usuario -> web -> backend -> motor hibrido Python -> ruta -> mapa
-```
-
-La web ya consume el recomendador hibrido final a traves del endpoint:
-
-```text
-POST /api/recommend-route
-```
-
-## Posibles mejoras futuras
-
-Algunas mejoras posibles son:
-
-- anadir un campo de texto libre para preferencias semanticas
-- cachear la matriz TF-IDF para no recalcularla en cada peticion
-- convertir el motor Python en una API FastAPI persistente
-- anadir tests del endpoint hibrido
-- mejorar la explicabilidad de cada POI recomendado
-- incorporar horarios de apertura de forma mas estricta
-- comparar formalmente los resultados contra el baseline
-- probar embeddings semanticos como alternativa a TF-IDF
-- conectar login y persistencia de rutas usando la BBDD MySQL
-- permitir recuperar rutas guardadas por usuario o cliente/hotel
-
-## Idea principal del proyecto
-
-El valor del proyecto esta en pasar de una recomendacion simple de POIs a un sistema completo de recomendacion de rutas, combinando tecnicas de data science, machine learning, heuristicas de optimizacion e integracion web.
+El valor del proyecto esta en unir data science, machine learning, optimizacion heuristica, backend, frontend y persistencia para pasar de un modelo experimental a una aplicacion web funcional de recomendacion de rutas.

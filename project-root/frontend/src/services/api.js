@@ -55,6 +55,31 @@ export function fetchSavedRoute(publicId) {
   return request(`/api/routes/${encodeURIComponent(publicId)}`);
 }
 
+export function fetchAdminData() {
+  return request("/api/admin");
+}
+
+export function createAdminClient(payload) {
+  return request("/api/admin/clients", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function createAdminUser(payload) {
+  return request("/api/admin/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
+export function updateAdminUserStatus(userId, isActive) {
+  return request(`/api/admin/users/${encodeURIComponent(userId)}/status`, {
+    method: "PATCH",
+    body: JSON.stringify({ isActive }),
+  });
+}
+
 export async function fetchStreetRoute(waypoints) {
   if (!Array.isArray(waypoints) || waypoints.length < 2) {
     return null;

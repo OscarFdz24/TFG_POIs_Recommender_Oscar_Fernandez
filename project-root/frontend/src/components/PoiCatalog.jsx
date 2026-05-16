@@ -161,19 +161,27 @@ export default function PoiCatalog({
 
           return (
             <article className="catalog-poi-card" key={poi.id}>
-              <div>
-                <strong>{poi.name}</strong>
-                <span>
-                  {poi.category || t.common.notAvailable} · {poi.subcategory || t.common.notAvailable}
-                </span>
+              <div className="catalog-poi-main">
+                <div className="catalog-poi-heading">
+                  <strong>{poi.name}</strong>
+                  <span className="catalog-rating">★ {poi.rating ?? t.common.notAvailable}</span>
+                </div>
+                <div className="catalog-tags">
+                  <span>{poi.category || t.common.notAvailable}</span>
+                  <span>{poi.subcategory || t.common.notAvailable}</span>
+                </div>
                 <p>{poi.description}</p>
               </div>
               <div className="catalog-poi-meta">
                 <span>{poi.neighborhoodZone || t.common.notAvailable}</span>
-                <span>Rating {poi.rating ?? t.common.notAvailable}</span>
+                <span>
+                  {poi.visitDuration
+                    ? `${poi.visitDuration} min`
+                    : t.common.notAvailable}
+                </span>
               </div>
               <button
-                className={selected ? "secondary-button" : "primary-button"}
+                className={selected ? "catalog-add-button added" : "catalog-add-button"}
                 disabled={selected}
                 onClick={() => onAddPoi(poi)}
                 type="button"

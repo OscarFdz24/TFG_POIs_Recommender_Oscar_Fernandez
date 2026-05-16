@@ -1,219 +1,173 @@
 # Barcelona POIs Recommender Web
 
-Aplicacion web desarrollada para integrar el sistema de recomendacion de rutas de POIs en Barcelona.
+Esta carpeta contiene la aplicacion web del TFM.
 
-La idea principal del proyecto es que el usuario pueda introducir unas preferencias basicas desde la web y recibir una ruta de puntos de interes, no solo una lista suelta de recomendaciones. La ruta se genera usando el sistema hibrido final del proyecto: similitud por contenido, calidad del POI, proximidad geografica y restricciones de tiempo/distancia.
+La web conecta el sistema hibrido de recomendacion de rutas con una interfaz usable para empresas, usuarios y administracion.
 
-## Estructura general
+## Estructura
 
 ```text
 project-root/
-  backend/     API Node.js + Express
-  frontend/    Cliente React + Vite + Leaflet
-  docs/        Documentacion tecnica del flujo web-modelo
-  app/         Estructura Python previa conservada
-  config/      Configuracion previa conservada
-  tests/       Tests iniciales del proyecto
-
-../ml_service/
-  recommend_route.py   Motor Python del recomendador hibrido
-
-../data/
-  pois_barcelona_hibrido.parquet
-  pois_barcelona_hibrido.csv
+|-- backend/    API Node.js + Express
+|-- frontend/   Aplicacion React + Vite + Leaflet
+|-- docs/       Documentacion tecnica y de defensa
+|-- app/        Estructura Python previa conservada
+|-- config/     Configuracion previa conservada
+`-- tests/      Tests iniciales
 ```
 
-## Arquitectura actual
+Fuera de `project-root`, pero conectado con la web:
 
-El flujo actual es:
+```text
+../ml_service/recommend_route.py
+../data/pois_barcelona_hibrido.parquet
+../database/
+```
+
+## Arquitectura
 
 ```text
 Frontend React
-  -> Backend Node.js
-  -> Motor Python del recomendador hibrido
-  -> Dataset hibrido enriquecido
+  -> Backend Express
+  -> Motor Python hibrido
+  -> Dataset hibrido
   -> Respuesta JSON
-  -> Mapa y panel de resultados
+  -> Mapa, resultados y persistencia MySQL
 ```
 
-El frontend no ejecuta directamente ningun notebook. La logica validada en el notebook del sistema hibrido se ha pasado a un script Python productivo:
+El frontend no ejecuta notebooks. El notebook final del sistema hibrido se llevo a:
 
 ```text
-ml_service/recommend_route.py
+../ml_service/recommend_route.py
 ```
 
-Ese script es llamado internamente por el backend cuando se solicita una ruta.
+## Vistas actuales
+
+### Admin
+
+Panel de administracion inicial:
+
+- resumen de empresas, usuarios, activos, rutas y POIs
+- crear empresas
+- crear usuario de acceso al crear empresa
+- crear usuarios manualmente
+- asignar usuarios a empresa
+- activar/desactivar usuarios
+- buscador de empresas y usuarios
+
+Todavia no esta protegido por login real. Cuando se implemente JWT, esta vista quedara limitada al rol `admin`.
+
+### Empresa
+
+Vista para empresas/clientes:
+
+- generador inteligente de rutas con el modelo hibrido
+- constructor manual con catalogo de POIs
+- editor de ruta activa
+- guardado de rutas en MySQL
+
+### Usuario
+
+Vista para usuario final:
+
+- cargar una ruta por codigo publico
+- guardar rutas cargadas en el navegador
+- consultar mapa, resumen y POIs
+
+En el futuro esta vista cargara rutas asignadas al usuario autenticado.
 
 ## Backend
 
 Carpeta:
 
 ```text
-project-root/backend
+backend/
+```
+
+Documentacion especifica:
+
+```text
+backend/README.md
 ```
 
 Endpoints principales:
 
 ```text
-GET  /api/health
-GET  /api/pois
-GET  /api/categories
-POST /api/recommend-route
-POST /api/routes
-GET  /api/routes/:publicId
+GET    /api/health
+GET    /api/categories
+GET    /api/pois
+POST   /api/recommend-route
+POST   /api/routes
+GET    /api/routes/:publicId
+GET    /api/admin
+POST   /api/admin/clients
+POST   /api/admin/users
+PATCH  /api/admin/users/:userId/status
 ```
-
-El endpoint mas importante es:
-
-```text
-POST /api/recommend-route
-```
-
-Este endpoint recibe las preferencias del usuario y devuelve:
-
-- candidatos considerados por el modelo
-- ruta final ordenada
-- resumen de distancia, tiempo y puntuaciones
-- metadatos sobre el metodo usado
-
-Actualmente el modo esperado en la respuesta es:
-
-```text
-python-hybrid-recommender
-```
-
-### Persistencia de rutas
-
-El backend tambien tiene una primera integracion con MySQL para guardar y
-recuperar rutas generadas.
-
-El endpoint:
-
-```text
-POST /api/routes
-```
-
-recibe una ruta ya generada por `POST /api/recommend-route` y la guarda en las
-tablas:
-
-```text
-routes
-route_pois
-```
-
-El endpoint:
-
-```text
-GET /api/routes/:publicId
-```
-
-recupera una ruta guardada usando su identificador publico.
-
-Para el MVP, MySQL se usa como capa de persistencia. El recomendador sigue
-leyendo el dataset hibrido desde `data/pois_barcelona_hibrido.parquet`.
-
-## Motor hibrido
-
-Archivo:
-
-```text
-ml_service/recommend_route.py
-```
-
-Este script contiene la version integrada del sistema hibrido final.
-
-Hace principalmente dos cosas:
-
-1. Selecciona candidatos:
-   - calcula similitud TF-IDF usando `content_base`
-   - aplica filtros de categoria, subcategoria, rating y distancia
-   - combina `quality_signal`, similitud y proximidad
-   - genera `hybrid_candidate_score`
-
-2. Construye la ruta:
-   - usa una heuristica greedy
-   - respeta distancia maxima
-   - respeta tiempo disponible
-   - controla distancia maxima por tramo
-   - usa `cluster_geo` para favorecer coherencia geografica
-
-## Dataset usado
-
-El sistema integrado usa el dataset final enriquecido:
-
-```text
-data/pois_barcelona_hibrido.parquet
-```
-
-Tambien existe una version CSV:
-
-```text
-data/pois_barcelona_hibrido.csv
-```
-
-El dataset se genera con:
-
-```text
-src/build_hybrid_dataset.py
-```
-
-Ese script no se ejecuta cada vez que se pide una recomendacion. Solo hace falta volver a ejecutarlo si se cambia el dataset base o la logica de enriquecimiento.
 
 ## Frontend
 
 Carpeta:
 
 ```text
-project-root/frontend
+frontend/
 ```
 
-Tecnologias principales:
+Documentacion especifica:
+
+```text
+frontend/README.md
+```
+
+Tecnologias:
 
 - React
 - Vite
 - Leaflet
 - React Leaflet
 
-La web permite:
+## Base de datos
 
-- introducir punto de inicio
-- seleccionar categorias y subcategorias
-- definir distancia maxima
-- definir numero maximo de POIs
-- definir tiempo disponible
-- definir rating minimo
-- ver la ruta en mapa
-- ver detalle y resumen de los POIs recomendados
+La BDD esta fuera de esta carpeta:
 
-## Ejecucion local
+```text
+../database/
+```
 
-La forma mas comoda de arrancar todo es desde la raiz del repositorio:
+Se usa para:
+
+- empresas
+- usuarios
+- roles
+- POIs importados
+- rutas guardadas
+- POIs de cada ruta
+
+El recomendador sigue usando el dataset hibrido:
+
+```text
+../data/pois_barcelona_hibrido.parquet
+```
+
+## Ejecutar todo
+
+Desde la raiz del repositorio:
 
 ```powershell
 .\start-dev.ps1
 ```
 
-Si PowerShell bloquea la ejecucion:
+En Git Bash:
 
-```powershell
-powershell -ExecutionPolicy Bypass -File .\start-dev.ps1
+```bash
+powershell.exe -ExecutionPolicy Bypass -File ./start-dev.ps1
 ```
 
-Esto abre dos ventanas:
-
-- backend en `http://localhost:4000`
-- frontend en `http://localhost:5173`
-
-Para comprobar el backend:
+URLs:
 
 ```text
-http://localhost:4000/api/health
-```
-
-Para abrir la web:
-
-```text
-http://localhost:5173
+Backend:  http://localhost:4000
+Frontend: http://localhost:5173
 ```
 
 ## Ejecucion manual
@@ -223,6 +177,7 @@ Backend:
 ```powershell
 cd project-root/backend
 npm install
+$env:PYTHON_BIN="C:\Users\User\miniconda3\envs\master_ds_clean\python.exe"
 npm run dev
 ```
 
@@ -234,55 +189,54 @@ npm install
 npm run dev
 ```
 
-Si se ejecuta manualmente el backend, conviene asegurarse de que `PYTHON_BIN` apunta al entorno Python donde estan instalados `pandas`, `scikit-learn` y `pyarrow`.
+## Dependencias
 
-Ejemplo:
-
-```powershell
-$env:PYTHON_BIN="C:\Users\User\miniconda3\envs\master_ds_clean\python.exe"
-npm run dev
-```
-
-## Payload de ejemplo
-
-```json
-{
-  "startLocation": {
-    "lat": 41.4035,
-    "lng": 2.17437
-  },
-  "categories": ["religious"],
-  "subcategories": ["cathedral"],
-  "maxDistanceKm": 5,
-  "maxPois": 5,
-  "availableTimeMinutes": 240,
-  "minRating": 4
-}
-```
-
-## Documentacion adicional
-
-En la carpeta `docs/` hay documentos utiles para entender la integracion:
+Backend:
 
 ```text
-docs/integracion_modelo_hibrido_web.txt
-docs/flujo_usuario_modelo_hibrido_web.txt
+bcryptjs
+cors
+csv-parse
+dotenv
+express
+mysql2
 ```
 
-El primero explica la metodologia de integracion del modelo con la web.
+Frontend:
 
-El segundo explica el flujo completo desde que el usuario introduce preferencias hasta que se muestra la ruta en el mapa.
+```text
+react
+react-dom
+leaflet
+react-leaflet
+vite
+@vitejs/plugin-react
+```
+
+Python usado por el recomendador:
+
+```text
+pandas
+numpy
+scikit-learn
+pyarrow
+```
+
+## Documentacion tecnica
+
+En `docs/`:
+
+```text
+apis_del_proyecto.txt
+auditoria_notebooks_modelado.md
+explicacion_modelo_hibrido_final.txt
+flujo_usuario_modelo_hibrido_web.txt
+historial_trabajo_2026-04-27.txt
+integracion_modelo_hibrido_web.txt
+preguntas_frecuentes_defensa.txt
+uso_ml_en_el_recomendador.txt
+```
 
 ## Estado actual
 
-El proyecto ya tiene conectada la web con el recomendador hibrido final.
-
-La heuristica temporal inicial de Node.js se conserva en el codigo como referencia, pero el endpoint principal de recomendacion ya delega en el motor Python.
-
-Quedan como posibles mejoras:
-
-- anadir un campo de texto libre para preferencias semanticas
-- mejorar la explicabilidad de cada POI recomendado
-- anadir tests especificos del endpoint hibrido
-- optimizar el motor Python para no recalcular TF-IDF en cada peticion
-- convertir el motor Python en un servicio FastAPI persistente si se quiere una arquitectura mas cercana a produccion
+La web ya esta conectada con el recomendador hibrido real y con MySQL para persistencia. El siguiente salto importante es activar login JWT y usar los roles reales para mostrar automaticamente Admin, Empresa o Usuario.

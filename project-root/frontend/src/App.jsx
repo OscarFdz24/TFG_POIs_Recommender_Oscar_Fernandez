@@ -1,13 +1,17 @@
 import { useEffect, useState } from "react";
 import HomePage from "./pages/HomePage.jsx";
 import {
+  createAdminClient,
+  createAdminUser,
   fetchCategories,
+  fetchAdminData,
   fetchHealth,
   fetchPois,
   fetchSavedRoute,
   fetchStreetRoute,
   recommendRoute,
   saveRoute,
+  updateAdminUserStatus,
 } from "./services/api.js";
 import { translations } from "./i18n/translations.js";
 
@@ -76,6 +80,9 @@ export default function App() {
   const [savingRoute, setSavingRoute] = useState(false);
   const [loadingSavedRoute, setLoadingSavedRoute] = useState(false);
   const [appMode, setAppMode] = useState("company");
+  const [adminData, setAdminData] = useState(null);
+  const [adminLoading, setAdminLoading] = useState(false);
+  const [adminMessage, setAdminMessage] = useState("");
   const [userRoutes, setUserRoutes] = useState(getInitialUserRoutes);
   const [catalogPois, setCatalogPois] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -133,6 +140,14 @@ export default function App() {
 
     handleSearchPois({ limit: 40 });
   }, [categories.length]);
+
+  useEffect(() => {
+    if (appMode !== "admin" || adminData) {
+      return;
+    }
+
+    handleLoadAdminData();
+  }, [appMode, adminData]);
 
   useEffect(() => {
     if (!routeData?.route?.length) {
@@ -292,6 +307,71 @@ export default function App() {
       setError(requestError.message || t.catalog.searchError);
     } finally {
       setCatalogLoading(false);
+    }
+  }
+
+  async function handleLoadAdminData() {
+    setAdminLoading(true);
+    setError("");
+
+    try {
+      const data = await fetchAdminData();
+      setAdminData(data);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.loadError);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleCreateAdminClient(payload) {
+    setAdminLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await createAdminClient(payload);
+      const data = await fetchAdminData();
+      setAdminData(data);
+      setAdminMessage(t.admin.clients.created);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.clients.createError);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleCreateAdminUser(payload) {
+    setAdminLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await createAdminUser(payload);
+      const data = await fetchAdminData();
+      setAdminData(data);
+      setAdminMessage(t.admin.users.created);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.users.createError);
+    } finally {
+      setAdminLoading(false);
+    }
+  }
+
+  async function handleToggleAdminUserStatus(userId, isActive) {
+    setAdminLoading(true);
+    setAdminMessage("");
+    setError("");
+
+    try {
+      await updateAdminUserStatus(userId, isActive);
+      const data = await fetchAdminData();
+      setAdminData(data);
+      setAdminMessage(isActive ? t.admin.users.enabled : t.admin.users.disabled);
+    } catch (requestError) {
+      setError(requestError.message || t.admin.users.statusError);
+    } finally {
+      setAdminLoading(false);
     }
   }
 
@@ -578,6 +658,9 @@ export default function App() {
 
   return (
     <HomePage
+      adminData={adminData}
+      adminLoading={adminLoading}
+      adminMessage={adminMessage}
       categories={categories}
       catalogLoading={catalogLoading}
       catalogPois={catalogPois}
@@ -589,7 +672,10 @@ export default function App() {
       loadingSavedRoute={loadingSavedRoute}
       appMode={appMode}
       onAppModeChange={setAppMode}
+      onCreateAdminClient={handleCreateAdminClient}
+      onCreateAdminUser={handleCreateAdminUser}
       onLanguageChange={setLanguage}
+      onLoadAdminData={handleLoadAdminData}
       onLoadSavedRoute={handleLoadSavedRoute}
       onManualPoiAdd={handleAddManualPoi}
       onManualPoiRemove={handleRemoveManualPoi}
@@ -606,6 +692,7 @@ export default function App() {
       onBuildManualRoute={handleBuildManualRoute}
       onSubmit={handleSubmit}
       onThemeChange={setTheme}
+      onToggleAdminUserStatus={handleToggleAdminUserStatus}
       routeData={routeData}
       routeDisplayMode={routeDisplayMode}
       manualPois={manualPois}
