@@ -3,6 +3,7 @@ import HomePage from "./pages/HomePage.jsx";
 import {
   fetchCategories,
   fetchHealth,
+  fetchPois,
   fetchSavedRoute,
   fetchStreetRoute,
   recommendRoute,
@@ -15,7 +16,21 @@ const DEFAULT_START = {
   lng: 2.1686,
 };
 
-const GUEST_ROUTES_STORAGE_KEY = "guest-saved-routes";
+const USER_ROUTES_STORAGE_KEY = "user-saved-routes";
+
+function haversineDistanceKm(origin, destination) {
+  const radiusKm = 6371;
+  const toRadians = (degrees) => (degrees * Math.PI) / 180;
+  const dLat = toRadians(destination.lat - origin.lat);
+  const dLng = toRadians(destination.lng - origin.lng);
+  const lat1 = toRadians(origin.lat);
+  const lat2 = toRadians(destination.lat);
+  const a =
+    Math.sin(dLat / 2) ** 2 +
+    Math.cos(lat1) * Math.cos(lat2) * Math.sin(dLng / 2) ** 2;
+
+  return 2 * radiusKm * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
 
 function getFriendlyErrorMessage(message, t) {
   if (message === "MIN_POIS_NOT_REACHED") {
@@ -41,9 +56,9 @@ function getInitialPreference(key, fallback) {
   return window.localStorage.getItem(key) || fallback;
 }
 
-function getInitialGuestRoutes() {
+function getInitialUserRoutes() {
   try {
-    return JSON.parse(window.localStorage.getItem(GUEST_ROUTES_STORAGE_KEY) || "[]");
+    return JSON.parse(window.localStorage.getItem(USER_ROUTES_STORAGE_KEY) || "[]");
   } catch {
     return [];
   }
@@ -60,8 +75,16 @@ export default function App() {
   const [savedRouteInfo, setSavedRouteInfo] = useState(null);
   const [savingRoute, setSavingRoute] = useState(false);
   const [loadingSavedRoute, setLoadingSavedRoute] = useState(false);
-  const [appMode, setAppMode] = useState("client");
-  const [guestRoutes, setGuestRoutes] = useState(getInitialGuestRoutes);
+  const [appMode, setAppMode] = useState("company");
+  const [userRoutes, setUserRoutes] = useState(getInitialUserRoutes);
+  const [catalogPois, setCatalogPois] = useState([]);
+  const [catalogLoading, setCatalogLoading] = useState(false);
+  const [manualPois, setManualPois] = useState([]);
+  const [editorConstraints, setEditorConstraints] = useState({
+    maxPois: 8,
+    maxDistanceKm: 10,
+    availableTimeMinutes: 360,
+  });
   const [theme, setTheme] = useState(() => getInitialPreference("app-theme", "dark"));
   const [language, setLanguage] = useState(() =>
     getInitialPreference("app-language", "es"),
@@ -81,8 +104,8 @@ export default function App() {
   }, [language, t.languageCode]);
 
   useEffect(() => {
-    window.localStorage.setItem(GUEST_ROUTES_STORAGE_KEY, JSON.stringify(guestRoutes));
-  }, [guestRoutes]);
+    window.localStorage.setItem(USER_ROUTES_STORAGE_KEY, JSON.stringify(userRoutes));
+  }, [userRoutes]);
 
   useEffect(() => {
     async function bootstrap() {
@@ -103,6 +126,29 @@ export default function App() {
     bootstrap();
   }, []);
 
+  useEffect(() => {
+    if (!categories.length) {
+      return;
+    }
+
+    handleSearchPois({ limit: 40 });
+  }, [categories.length]);
+
+  useEffect(() => {
+    if (!routeData?.route?.length) {
+      return;
+    }
+
+    setEditorConstraints({
+      maxPois: Number(routeData.summary?.requestedPois || routeData.route.length),
+      maxDistanceKm: Math.max(1, Math.ceil(Number(routeData.summary?.totalDistanceKm || 10))),
+      availableTimeMinutes: Math.max(
+        30,
+        Math.ceil(Number(routeData.summary?.totalExperienceMinutes || routeData.summary?.totalVisitMinutes || 360)),
+      ),
+    });
+  }, [routeData?.summary?.generatedAt, routeData?.meta?.mode]);
+
   function buildWaypoints(response) {
     return [
       response.preferences.startLocation,
@@ -111,6 +157,182 @@ export default function App() {
         lng: poi.longitude,
       })),
     ];
+  }
+
+  async function buildRouteResponseFromPois({
+    pois,
+    baseRouteData = null,
+    name,
+    mode,
+    methodology,
+    note,
+    constraints = {},
+  }) {
+    const startLocation = baseRouteData?.preferences?.startLocation || {
+      lat: pois[0].latitude,
+      lng: pois[0].longitude,
+    };
+
+    const route = pois.map((poi, index) => {
+      const previousPoint =
+        index === 0
+          ? startLocation
+          : {
+              lat: pois[index - 1].latitude,
+              lng: pois[index - 1].longitude,
+            };
+      const currentPoint = {
+        lat: poi.latitude,
+        lng: poi.longitude,
+      };
+
+      return {
+        ...poi,
+        routePosition: index + 1,
+        distanceFromStartKm: Number(
+          haversineDistanceKm(startLocation, currentPoint).toFixed(3),
+        ),
+        distanceFromPreviousKm: Number(
+          haversineDistanceKm(previousPoint, currentPoint).toFixed(3),
+        ),
+        hybridCandidateScore: poi.hybridCandidateScore ?? poi.score ?? null,
+        similarityScore: poi.similarityScore ?? null,
+        qualitySignal: poi.qualitySignal ?? null,
+        routeUtility: poi.routeUtility ?? null,
+      };
+    });
+    const totalVisitMinutes = route.reduce(
+      (total, poi) => total + Number(poi.visitDuration || poi.visitDurationMinutes || 45),
+      0,
+    );
+    const straightDistanceKm = route.reduce(
+      (total, poi) => total + Number(poi.distanceFromPreviousKm || 0),
+      0,
+    );
+
+    let nextRouteData = {
+      ...(baseRouteData || {}),
+      name,
+      preferences: {
+        ...(baseRouteData?.preferences || {}),
+        startLocation,
+        editorConstraints: constraints,
+      },
+      candidates: baseRouteData?.candidates || route,
+      route,
+      summary: {
+        ...(baseRouteData?.summary || {}),
+        totalPois: route.length,
+        requestedPois: constraints.maxPois || route.length,
+        totalDistanceKm: Number(straightDistanceKm.toFixed(2)),
+        distanceWithoutReturnKm: Number(straightDistanceKm.toFixed(2)),
+        totalVisitMinutes,
+        totalTravelMinutes: null,
+        totalExperienceMinutes: totalVisitMinutes,
+      },
+      meta: {
+        ...(baseRouteData?.meta || {}),
+        mode,
+        methodology,
+        notes: [note, ...(baseRouteData?.meta?.notes || [])],
+      },
+    };
+
+    if (route.length > 1) {
+      try {
+        const routeWaypoints = route.map((poi) => ({
+          lat: poi.latitude,
+          lng: poi.longitude,
+        }));
+        const firstRoutePoint = routeWaypoints[0];
+        const startsAtFirstPoi =
+          firstRoutePoint &&
+          Math.abs(firstRoutePoint.lat - startLocation.lat) < 0.000001 &&
+          Math.abs(firstRoutePoint.lng - startLocation.lng) < 0.000001;
+        const streetRoute = await fetchStreetRoute([
+          startLocation,
+          ...(startsAtFirstPoi ? routeWaypoints.slice(1) : routeWaypoints),
+        ]);
+
+        nextRouteData = {
+          ...nextRouteData,
+          navigation: streetRoute,
+          summary: {
+            ...nextRouteData.summary,
+            totalDistanceKm: streetRoute.distanceKm,
+            totalTravelMinutes: streetRoute.durationMinutes,
+            totalExperienceMinutes: totalVisitMinutes + streetRoute.durationMinutes,
+          },
+        };
+      } catch {
+        nextRouteData = {
+          ...nextRouteData,
+          navigation: {
+            geometry: [startLocation, ...route].map((point) => [
+              point.lat ?? point.latitude,
+              point.lng ?? point.longitude,
+            ]),
+            mode: "straight-line-fallback",
+          },
+        };
+      }
+    }
+
+    return nextRouteData;
+  }
+
+  async function handleSearchPois(filters) {
+    setCatalogLoading(true);
+    setError("");
+
+    try {
+      const response = await fetchPois(filters);
+      setCatalogPois(response.items || []);
+    } catch (requestError) {
+      setError(requestError.message || t.catalog.searchError);
+    } finally {
+      setCatalogLoading(false);
+    }
+  }
+
+  function handleAddManualPoi(poi) {
+    setManualPois((currentPois) => {
+      if (currentPois.some((item) => item.id === poi.id)) {
+        return currentPois;
+      }
+
+      return [...currentPois, poi].slice(0, 12);
+    });
+  }
+
+  function handleRemoveManualPoi(poiId) {
+    setManualPois((currentPois) => currentPois.filter((poi) => poi.id !== poiId));
+  }
+
+  async function handleBuildManualRoute() {
+    if (!manualPois.length) {
+      setError(t.catalog.emptyManualRoute);
+      return;
+    }
+
+    setSubmitting(true);
+    setError("");
+
+    const manualResponse = await buildRouteResponseFromPois({
+      pois: manualPois,
+      name: t.catalog.manualRouteName,
+      mode: "manual-catalog-route",
+      methodology: "manual_poi_selection",
+      note: t.catalog.manualRouteNote,
+      constraints: {
+        maxPois: manualPois.length,
+      },
+    });
+
+    setRouteData(manualResponse);
+    setSavedRouteInfo(null);
+    setSelectedPoi(manualResponse.route[0] || null);
+    setSubmitting(false);
   }
 
   async function handleSubmit(preferences) {
@@ -254,7 +476,7 @@ export default function App() {
         totalPois: saved.totalPois,
         message: t.saved.loaded,
       });
-      setAppMode("guest");
+      setAppMode("user");
     } catch (requestError) {
       setError(requestError.message || t.saved.loadError);
       setRouteData(null);
@@ -264,13 +486,13 @@ export default function App() {
     }
   }
 
-  function handleSaveGuestRoute() {
+  function handleSaveUserRoute() {
     if (!routeData?.route?.length || !savedRouteInfo?.publicId) {
-      setError(t.guestRoutes.noLoadedRoute);
+      setError(t.userRoutes.noLoadedRoute);
       return;
     }
 
-    const routeName = routeData.name || `${t.guestRoutes.defaultName} ${guestRoutes.length + 1}`;
+    const routeName = routeData.name || `${t.userRoutes.defaultName} ${userRoutes.length + 1}`;
     const newItem = {
       publicId: savedRouteInfo.publicId,
       name: routeName,
@@ -278,7 +500,7 @@ export default function App() {
       savedAt: new Date().toISOString(),
     };
 
-    setGuestRoutes((currentRoutes) => {
+    setUserRoutes((currentRoutes) => {
       const withoutDuplicate = currentRoutes.filter(
         (route) => route.publicId !== newItem.publicId,
       );
@@ -286,15 +508,79 @@ export default function App() {
     });
   }
 
-  function handleRemoveGuestRoute(publicId) {
-    setGuestRoutes((currentRoutes) =>
+  function handleRemoveUserRoute(publicId) {
+    setUserRoutes((currentRoutes) =>
       currentRoutes.filter((route) => route.publicId !== publicId),
     );
+  }
+
+  function handleEditorConstraintChange(name, value) {
+    setEditorConstraints((current) => ({
+      ...current,
+      [name]: Number(value),
+    }));
+  }
+
+  async function applyEditedRoute(nextPois) {
+    if (!nextPois.length) {
+      setRouteData(null);
+      setSelectedPoi(null);
+      setSavedRouteInfo(null);
+      return;
+    }
+
+    const editedRoute = await buildRouteResponseFromPois({
+      pois: nextPois,
+      baseRouteData: routeData,
+      name: routeData?.name || t.editor.editedRouteName,
+      mode: "edited-company-route",
+      methodology: "company_route_editor",
+      note: t.editor.editedRouteNote,
+      constraints: editorConstraints,
+    });
+
+    setRouteData(editedRoute);
+    setSavedRouteInfo(null);
+    setSelectedPoi(editedRoute.route[0] || null);
+  }
+
+  async function handleEditorRemovePoi(poiId) {
+    await applyEditedRoute((routeData?.route || []).filter((poi) => poi.id !== poiId));
+  }
+
+  async function handleEditorMovePoi(poiId, direction) {
+    const route = [...(routeData?.route || [])];
+    const index = route.findIndex((poi) => poi.id === poiId);
+    const nextIndex = index + direction;
+
+    if (index < 0 || nextIndex < 0 || nextIndex >= route.length) {
+      return;
+    }
+
+    [route[index], route[nextIndex]] = [route[nextIndex], route[index]];
+    await applyEditedRoute(route);
+  }
+
+  async function handleEditorAddPoi(poi) {
+    const currentRoute = routeData?.route || [];
+
+    if (currentRoute.some((item) => item.id === poi.id)) {
+      return;
+    }
+
+    if (currentRoute.length >= Number(editorConstraints.maxPois || currentRoute.length)) {
+      setError(t.editor.maxPoisReached);
+      return;
+    }
+
+    await applyEditedRoute([...currentRoute, poi]);
   }
 
   return (
     <HomePage
       categories={categories}
+      catalogLoading={catalogLoading}
+      catalogPois={catalogPois}
       defaultStart={DEFAULT_START}
       error={error}
       health={health}
@@ -305,16 +591,26 @@ export default function App() {
       onAppModeChange={setAppMode}
       onLanguageChange={setLanguage}
       onLoadSavedRoute={handleLoadSavedRoute}
+      onManualPoiAdd={handleAddManualPoi}
+      onManualPoiRemove={handleRemoveManualPoi}
       onPoiSelect={setSelectedPoi}
-      onRemoveGuestRoute={handleRemoveGuestRoute}
+      onRemoveUserRoute={handleRemoveUserRoute}
+      onEditorAddPoi={handleEditorAddPoi}
+      onEditorConstraintChange={handleEditorConstraintChange}
+      onEditorMovePoi={handleEditorMovePoi}
+      onEditorRemovePoi={handleEditorRemovePoi}
       onRouteDisplayModeChange={setRouteDisplayMode}
-      onSaveGuestRoute={handleSaveGuestRoute}
+      onSearchPois={handleSearchPois}
+      onSaveUserRoute={handleSaveUserRoute}
       onSaveRoute={handleSaveRoute}
+      onBuildManualRoute={handleBuildManualRoute}
       onSubmit={handleSubmit}
       onThemeChange={setTheme}
       routeData={routeData}
       routeDisplayMode={routeDisplayMode}
-      guestRoutes={guestRoutes}
+      manualPois={manualPois}
+      editorConstraints={editorConstraints}
+      userRoutes={userRoutes}
       savedRouteInfo={savedRouteInfo}
       selectedPoi={selectedPoi}
       savingRoute={savingRoute}

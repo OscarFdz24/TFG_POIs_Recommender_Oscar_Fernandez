@@ -217,10 +217,19 @@ function buildGenerationNotes({
   return notes;
 }
 
-export async function getFilteredPois({ category, subcategory, limit }) {
+export async function getFilteredPois({
+  category,
+  subcategory,
+  q,
+  minRating,
+  neighborhoodZone,
+  limit,
+}) {
   const pois = await getAllPois();
   const categorySlug = category ? toSlug(category) : null;
   const subcategorySlug = subcategory ? toSlug(subcategory) : null;
+  const query = q ? toSlug(q) : null;
+  const minRatingValue = Number(minRating || 0);
 
   let filtered = pois;
 
@@ -230,6 +239,29 @@ export async function getFilteredPois({ category, subcategory, limit }) {
 
   if (subcategorySlug) {
     filtered = filtered.filter((poi) => poi.subcategorySlug === subcategorySlug);
+  }
+
+  if (neighborhoodZone) {
+    filtered = filtered.filter((poi) => poi.neighborhoodZone === neighborhoodZone);
+  }
+
+  if (Number.isFinite(minRatingValue) && minRatingValue > 0) {
+    filtered = filtered.filter((poi) => poi.rating === null || poi.rating >= minRatingValue);
+  }
+
+  if (query) {
+    filtered = filtered.filter((poi) => {
+      const searchableText = toSlug([
+        poi.name,
+        poi.category,
+        poi.subcategory,
+        poi.description,
+        poi.tags,
+        poi.neighborhoodZone,
+      ].join(" "));
+
+      return searchableText.includes(query);
+    });
   }
 
   return filtered.slice(0, limit || 200);

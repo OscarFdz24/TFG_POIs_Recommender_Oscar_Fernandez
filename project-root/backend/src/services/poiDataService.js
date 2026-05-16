@@ -52,6 +52,7 @@ function normalizePoi(row, index) {
     visitDuration: toNumber(row.visit_duration),
     matchConfidence: toNumber(row.match_confidence),
     clusterGeo: toNumber(row.cluster_geo),
+    neighborhoodZone: sanitizeText(row.city_area),
     tags: sanitizeText(row.tags_str || row.tags),
     openingHours: sanitizeText(row.opening_hours),
     openingHoursSource: sanitizeText(row.opening_hours_source),

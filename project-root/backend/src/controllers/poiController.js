@@ -6,6 +6,9 @@ export async function getPois(req, res) {
   const pois = await getFilteredPois({
     category: req.query.category,
     subcategory: req.query.subcategory,
+    q: req.query.q,
+    minRating: req.query.minRating,
+    neighborhoodZone: req.query.neighborhoodZone,
     limit,
   });
 

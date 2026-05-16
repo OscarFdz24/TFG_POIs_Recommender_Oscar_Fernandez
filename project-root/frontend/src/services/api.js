@@ -24,6 +24,19 @@ export function fetchCategories() {
   return request("/api/categories");
 }
 
+export function fetchPois(filters = {}) {
+  const params = new URLSearchParams();
+
+  Object.entries(filters).forEach(([key, value]) => {
+    if (value !== undefined && value !== null && value !== "") {
+      params.set(key, value);
+    }
+  });
+
+  const query = params.toString();
+  return request(`/api/pois${query ? `?${query}` : ""}`);
+}
+
 export function recommendRoute(payload) {
   return request("/api/recommend-route", {
     method: "POST",

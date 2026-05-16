@@ -2,9 +2,13 @@ import { useState } from "react";
 import ResultsSidebar from "../components/ResultsSidebar.jsx";
 import RouteMap from "../components/RouteMap.jsx";
 import AppSidebar from "../components/AppSidebar.jsx";
+import PoiCatalog from "../components/PoiCatalog.jsx";
+import RouteEditor from "../components/RouteEditor.jsx";
 
 export default function HomePage({
   categories,
+  catalogLoading,
+  catalogPois,
   defaultStart,
   error,
   health,
@@ -12,19 +16,29 @@ export default function HomePage({
   loading,
   loadingSavedRoute,
   appMode,
-  guestRoutes,
+  userRoutes,
   onAppModeChange,
   onLanguageChange,
   onLoadSavedRoute,
+  onManualPoiAdd,
+  onManualPoiRemove,
   onPoiSelect,
-  onRemoveGuestRoute,
+  onRemoveUserRoute,
+  onEditorAddPoi,
+  onEditorConstraintChange,
+  onEditorMovePoi,
+  onEditorRemovePoi,
   onRouteDisplayModeChange,
-  onSaveGuestRoute,
+  onSearchPois,
+  onSaveUserRoute,
   onSaveRoute,
+  onBuildManualRoute,
   onSubmit,
   onThemeChange,
   routeData,
   routeDisplayMode,
+  manualPois,
+  editorConstraints,
   savedRouteInfo,
   selectedPoi,
   savingRoute,
@@ -34,7 +48,13 @@ export default function HomePage({
 }) {
   const [sidebarOpen, setSidebarOpen] = useState(true);
   const [routeCode, setRouteCode] = useState("");
-  const isGuestMode = appMode === "guest";
+  const [companyTool, setCompanyTool] = useState("smart");
+  const isUserMode = appMode === "user";
+  const isSmartTool = !isUserMode && companyTool === "smart";
+  const isManualTool = !isUserMode && companyTool === "manual";
+  const isEditorTool = !isUserMode && companyTool === "editor";
+  const visibleRouteData =
+    isManualTool && routeData?.meta?.mode !== "manual-catalog-route" ? null : routeData;
 
   function submitRouteCode(event) {
     event.preventDefault();
@@ -44,8 +64,8 @@ export default function HomePage({
   }
 
   return (
-    <div className={`app-layout ${sidebarOpen && !isGuestMode ? "sidebar-open" : "sidebar-closed"} ${isGuestMode ? "guest-layout" : ""}`}>
-      {!isGuestMode && (
+    <div className={`app-layout ${sidebarOpen && isSmartTool ? "sidebar-open" : "sidebar-closed"} ${isUserMode ? "user-layout" : ""}`}>
+      {isSmartTool && (
         <AppSidebar
           categories={categories}
           defaultStart={defaultStart}
@@ -60,7 +80,15 @@ export default function HomePage({
       <div className="mobile-topbar">
         <button
           className="mobile-menu-button"
-          onClick={() => (isGuestMode ? onAppModeChange("client") : setSidebarOpen(true))}
+          onClick={() => {
+            if (isUserMode) {
+              onAppModeChange("company");
+              return;
+            }
+
+            setCompanyTool("smart");
+            setSidebarOpen(true);
+          }}
           type="button"
         >
           ☰
@@ -91,22 +119,22 @@ export default function HomePage({
         <div className="mode-toolbar">
           <div className="compact-control" aria-label={t.modes.label}>
             <button
-              className={appMode === "client" ? "active" : ""}
-              onClick={() => onAppModeChange("client")}
+              className={appMode === "company" ? "active" : ""}
+              onClick={() => onAppModeChange("company")}
               type="button"
             >
-              {t.modes.client}
+              {t.modes.company}
             </button>
             <button
-              className={appMode === "guest" ? "active" : ""}
-              onClick={() => onAppModeChange("guest")}
+              className={appMode === "user" ? "active" : ""}
+              onClick={() => onAppModeChange("user")}
               type="button"
             >
-              {t.modes.guest}
+              {t.modes.user}
             </button>
           </div>
 
-          {!isGuestMode && (
+          {isSmartTool && (
             <button
               className="sidebar-toggle-button"
               onClick={() => setSidebarOpen((current) => !current)}
@@ -174,70 +202,99 @@ export default function HomePage({
 
       {!loading && (
         <>
-          {isGuestMode && (
-            <section className="panel guest-loader-panel">
-              <div>
-                <p className="eyebrow">{t.guest.eyebrow}</p>
-                <h2>{t.guest.title}</h2>
-                <p>{t.guest.description}</p>
+          {!isUserMode && (
+            <section className="company-tools-panel">
+              <div className="company-tool-tabs" aria-label={t.companyTools.label}>
+                <button
+                  className={companyTool === "smart" ? "active" : ""}
+                  onClick={() => setCompanyTool("smart")}
+                  type="button"
+                >
+                  {t.companyTools.smart}
+                </button>
+                <button
+                  className={companyTool === "manual" ? "active" : ""}
+                  onClick={() => setCompanyTool("manual")}
+                  type="button"
+                >
+                  {t.companyTools.manual}
+                </button>
+                <button
+                  className={companyTool === "editor" ? "active" : ""}
+                  onClick={() => setCompanyTool("editor")}
+                  type="button"
+                >
+                  {t.companyTools.editor}
+                </button>
               </div>
-              <form className="guest-loader-form" onSubmit={submitRouteCode}>
+              <p>{t.companyTools.description[companyTool]}</p>
+            </section>
+          )}
+
+          {isUserMode && (
+            <section className="panel user-loader-panel">
+              <div>
+                <p className="eyebrow">{t.userAccess.eyebrow}</p>
+                <h2>{t.userAccess.title}</h2>
+                <p>{t.userAccess.description}</p>
+              </div>
+              <form className="user-loader-form" onSubmit={submitRouteCode}>
                 <label>
-                  <span>{t.guest.codeLabel}</span>
+                  <span>{t.userAccess.codeLabel}</span>
                   <input
                     onChange={(event) => setRouteCode(event.target.value)}
-                    placeholder={t.guest.codePlaceholder}
+                    placeholder={t.userAccess.codePlaceholder}
                     value={routeCode}
                   />
                 </label>
                 <button className="primary-button" disabled={loadingSavedRoute} type="submit">
-                  {loadingSavedRoute ? t.guest.loading : t.guest.load}
+                  {loadingSavedRoute ? t.userAccess.loading : t.userAccess.load}
                 </button>
               </form>
-              <div className="guest-routes-wallet">
-                <div className="guest-routes-wallet-head">
+              <div className="user-routes-wallet">
+                <div className="user-routes-wallet-head">
                   <div>
-                    <p className="eyebrow">{t.guestRoutes.eyebrow}</p>
-                    <h3>{t.guestRoutes.title}</h3>
+                    <p className="eyebrow">{t.userRoutes.eyebrow}</p>
+                    <h3>{t.userRoutes.title}</h3>
                   </div>
                   {routeData?.route?.length && savedRouteInfo?.publicId ? (
-                    <button className="secondary-button" onClick={onSaveGuestRoute} type="button">
-                      {t.guestRoutes.saveCurrent}
+                    <button className="secondary-button" onClick={onSaveUserRoute} type="button">
+                      {t.userRoutes.saveCurrent}
                     </button>
                   ) : null}
                 </div>
 
-                {guestRoutes.length ? (
-                  <div className="guest-route-list">
-                    {guestRoutes.map((route) => (
-                      <article className="guest-route-item" key={route.publicId}>
+                {userRoutes.length ? (
+                  <div className="user-route-list">
+                    {userRoutes.map((route) => (
+                      <article className="user-route-item" key={route.publicId}>
                         <div>
                           <strong>{route.name}</strong>
                           <span>{route.totalPois} POIs</span>
                           <code>{route.publicId}</code>
                         </div>
-                        <div className="guest-route-actions">
+                        <div className="user-route-actions">
                           <button
                             className="secondary-button"
                             disabled={loadingSavedRoute}
                             onClick={() => onLoadSavedRoute(route.publicId)}
                             type="button"
                           >
-                            {t.guestRoutes.open}
+                            {t.userRoutes.open}
                           </button>
                           <button
                             className="secondary-button"
-                            onClick={() => onRemoveGuestRoute(route.publicId)}
+                            onClick={() => onRemoveUserRoute(route.publicId)}
                             type="button"
                           >
-                            {t.guestRoutes.remove}
+                            {t.userRoutes.remove}
                           </button>
                         </div>
                       </article>
                     ))}
                   </div>
                 ) : (
-                  <p className="guest-routes-empty">{t.guestRoutes.empty}</p>
+                  <p className="user-routes-empty">{t.userRoutes.empty}</p>
                 )}
               </div>
             </section>
@@ -245,7 +302,43 @@ export default function HomePage({
 
           <section className="workspace-grid">
             <div className="workspace-main">
-              {routeData ? (
+              {isManualTool && (
+                <PoiCatalog
+                  categories={categories}
+                  loading={catalogLoading}
+                  onAddPoi={onManualPoiAdd}
+                  onBuildRoute={onBuildManualRoute}
+                  onRemovePoi={onManualPoiRemove}
+                  onSearch={onSearchPois}
+                  pois={catalogPois}
+                  selectedPois={manualPois}
+                  t={t}
+                />
+              )}
+
+              {isManualTool && routeData && routeData.meta?.mode !== "manual-catalog-route" && (
+                <section className="panel manual-view-note">
+                  <p>{t.catalog.routeHiddenInManual}</p>
+                </section>
+              )}
+
+              {isEditorTool && (
+                <RouteEditor
+                  categories={categories}
+                  constraints={editorConstraints}
+                  loading={catalogLoading}
+                  onAddPoi={onEditorAddPoi}
+                  onConstraintChange={onEditorConstraintChange}
+                  onMovePoi={onEditorMovePoi}
+                  onRemovePoi={onEditorRemovePoi}
+                  onSearch={onSearchPois}
+                  pois={catalogPois}
+                  route={routeData?.route || []}
+                  t={t}
+                />
+              )}
+
+              {visibleRouteData ? (
                 <section className="panel route-overview">
                   <div className="route-overview-heading">
                     <p className="eyebrow">{t.overview.eyebrow}</p>
@@ -256,28 +349,28 @@ export default function HomePage({
                     <div className="overview-card">
                       <span>{t.overview.generatedPois}</span>
                       <strong>
-                        {routeData.summary.totalPois} / {routeData.summary.requestedPois}
+                        {visibleRouteData.summary.totalPois} / {visibleRouteData.summary.requestedPois}
                       </strong>
                     </div>
                     <div className="overview-card">
                       <span>{t.overview.routeDistance}</span>
-                      <strong>{routeData.summary.totalDistanceKm} km</strong>
+                      <strong>{visibleRouteData.summary.totalDistanceKm} km</strong>
                     </div>
                     <div className="overview-card">
                       <span>{t.overview.visitTime}</span>
-                      <strong>{routeData.summary.totalVisitMinutes} min</strong>
+                      <strong>{visibleRouteData.summary.totalVisitMinutes} min</strong>
                     </div>
                     <div className="overview-card">
                       <span>{t.overview.travelTime}</span>
                       <strong>
-                        {routeData.summary.totalTravelMinutes === null
+                        {visibleRouteData.summary.totalTravelMinutes === null
                           ? t.common.notAvailable
-                          : `${routeData.summary.totalTravelMinutes} min`}
+                          : `${visibleRouteData.summary.totalTravelMinutes} min`}
                       </strong>
                     </div>
                     <div className="overview-card">
                       <span>{t.overview.totalTime}</span>
-                      <strong>{routeData.summary.totalExperienceMinutes} min</strong>
+                      <strong>{visibleRouteData.summary.totalExperienceMinutes} min</strong>
                     </div>
                     <div className="overview-card">
                       <span>{t.overview.routeMode}</span>
@@ -288,7 +381,7 @@ export default function HomePage({
                       </strong>
                     </div>
                   </div>
-                  {!isGuestMode && (
+                  {!isUserMode && (
                     <div className="save-route-actions">
                       <button
                         className="primary-button"
@@ -306,7 +399,7 @@ export default function HomePage({
                       )}
                     </div>
                   )}
-                  {isGuestMode && savedRouteInfo?.publicId && (
+                  {isUserMode && savedRouteInfo?.publicId && (
                     <p className="saved-route-note">
                       {t.saved.loaded}: {savedRouteInfo.publicId}
                     </p>
@@ -317,21 +410,21 @@ export default function HomePage({
               <RouteMap
                 onPoiSelect={onPoiSelect}
                 onRouteDisplayModeChange={onRouteDisplayModeChange}
-                route={routeData?.route || []}
+                route={visibleRouteData?.route || []}
                 routeDisplayMode={routeDisplayMode}
-                routeGeometry={routeData?.navigation?.geometry || []}
-                selectedPoi={selectedPoi}
-                startLocation={routeData?.preferences?.startLocation || defaultStart}
+                routeGeometry={visibleRouteData?.navigation?.geometry || []}
+                selectedPoi={visibleRouteData ? selectedPoi : null}
+                startLocation={visibleRouteData?.preferences?.startLocation || defaultStart}
                 t={t}
                 theme={theme}
               />
-              {routeData ? (
+              {visibleRouteData ? (
                 <ResultsSidebar
-                  meta={routeData.meta}
+                  meta={visibleRouteData.meta}
                   onPoiSelect={onPoiSelect}
-                  route={routeData.route}
+                  route={visibleRouteData.route}
                   selectedPoi={selectedPoi}
-                  summary={routeData.summary}
+                  summary={visibleRouteData.summary}
                   t={t}
                 />
               ) : (
