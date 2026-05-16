@@ -1,4 +1,5 @@
 import PreferenceForm from "./PreferenceForm.jsx";
+import appLogo from "../assets/icono_web.png";
 
 export default function AppSidebar({
   categories,
@@ -12,7 +13,7 @@ export default function AppSidebar({
     <aside className="app-sidebar">
       <div className="sidebar-head">
         <div className="topbar-brand sidebar-brand">
-          <span className="brand-mark">BCN</span>
+          <img className="brand-logo" src={appLogo} alt="" />
           <div>
             <strong>{t.topbar.title}</strong>
           </div>

@@ -4,6 +4,7 @@ import RouteMap from "../components/RouteMap.jsx";
 import AppSidebar from "../components/AppSidebar.jsx";
 import PoiCatalog from "../components/PoiCatalog.jsx";
 import RouteEditor from "../components/RouteEditor.jsx";
+import appLogo from "../assets/icono_web.png";
 
 export default function HomePage({
   categories,
@@ -53,6 +54,11 @@ export default function HomePage({
   const isSmartTool = !isUserMode && companyTool === "smart";
   const isManualTool = !isUserMode && companyTool === "manual";
   const isEditorTool = !isUserMode && companyTool === "editor";
+  const layoutMode = isSmartTool
+    ? sidebarOpen
+      ? "sidebar-open"
+      : "sidebar-closed"
+    : "no-sidebar";
   const visibleRouteData =
     isManualTool && routeData?.meta?.mode !== "manual-catalog-route" ? null : routeData;
 
@@ -64,7 +70,7 @@ export default function HomePage({
   }
 
   return (
-    <div className={`app-layout ${sidebarOpen && isSmartTool ? "sidebar-open" : "sidebar-closed"} ${isUserMode ? "user-layout" : ""}`}>
+    <div className={`app-layout ${layoutMode} ${isUserMode ? "user-layout" : ""}`}>
       {isSmartTool && (
         <AppSidebar
           categories={categories}
@@ -94,8 +100,11 @@ export default function HomePage({
           ☰
         </button>
         <div className="mobile-brand">
-          <strong>{t.topbar.title}</strong>
-          <span>{t.topbar.subtitle}</span>
+          <img className="brand-logo mobile-brand-logo" src={appLogo} alt="" />
+          <div>
+            <strong>{t.topbar.title}</strong>
+            <span>{t.topbar.subtitle}</span>
+          </div>
         </div>
         <div className="mobile-topbar-actions">
           <span className={health?.status === "ok" ? "mobile-status ok" : "mobile-status"} />
@@ -134,13 +143,15 @@ export default function HomePage({
             </button>
           </div>
 
-          {isSmartTool && (
+          {isSmartTool && !sidebarOpen && (
             <button
-              className="sidebar-toggle-button"
+              aria-label={t.sidebar.show}
+              className="sidebar-toggle-button icon-only"
               onClick={() => setSidebarOpen((current) => !current)}
+              title={t.sidebar.show}
               type="button"
             >
-              {sidebarOpen ? t.sidebar.hide : t.sidebar.show}
+              <span aria-hidden="true">☰</span>
             </button>
           )}
         </div>
@@ -202,6 +213,18 @@ export default function HomePage({
 
       {!loading && (
         <>
+          {!isSmartTool && (
+            <section className="view-brand-bar">
+              <div className="topbar-brand">
+                <img className="brand-logo" src={appLogo} alt="" />
+                <div>
+                  <strong>{t.topbar.title}</strong>
+                  <span>{isUserMode ? t.modes.user : t.modes.company}</span>
+                </div>
+              </div>
+            </section>
+          )}
+
           {!isUserMode && (
             <section className="company-tools-panel">
               <div className="company-tool-tabs" aria-label={t.companyTools.label}>

@@ -1,24 +1,24 @@
 :root {
   color-scheme: dark;
-  --bg: #0b0d10;
-  --panel: rgba(20, 24, 27, 0.9);
-  --panel-strong: rgba(28, 32, 35, 0.98);
-  --text: #f4f1ea;
-  --muted: #b2ada3;
-  --line: rgba(238, 227, 207, 0.16);
-  --accent: #5ed6a7;
-  --accent-deep: #288565;
-  --accent-soft: rgba(94, 214, 167, 0.14);
-  --sea: #f2c86b;
-  --danger: #ff8a7a;
-  --shadow: 0 30px 80px rgba(0, 0, 0, 0.42);
+  --bg: #010409;
+  --panel: rgba(8, 12, 18, 0.92);
+  --panel-strong: rgba(13, 17, 23, 0.98);
+  --text: #f0f6fc;
+  --muted: #9aa4b2;
+  --line: rgba(240, 246, 252, 0.5);
+  --accent: #b86cff;
+  --accent-deep: #8b35f6;
+  --accent-soft: rgba(184, 108, 255, 0.16);
+  --sea: #d8b4fe;
+  --danger: #ff7b72;
+  --shadow: 0 30px 80px rgba(0, 0, 0, 0.58);
   font-family: "Aptos", "Trebuchet MS", sans-serif;
   line-height: 1.5;
   font-weight: 400;
   color: var(--text);
   background:
-    linear-gradient(180deg, rgba(94, 214, 167, 0.08), transparent 320px),
-    linear-gradient(135deg, #0b0d10 0%, #15120f 45%, #101715 100%);
+    radial-gradient(circle at top right, rgba(184, 108, 255, 0.1), transparent 340px),
+    linear-gradient(180deg, #010409 0%, #05070c 52%, #010409 100%);
 }
 
 html[data-theme="light"] {
@@ -62,14 +62,21 @@ select {
   display: grid;
   grid-template-columns: 390px minmax(0, 1fr);
   min-height: 100vh;
+  transition: grid-template-columns 0.24s ease;
 }
 
 .app-layout.sidebar-closed {
+  grid-template-columns: 0 minmax(0, 1fr);
+}
+
+.app-layout.no-sidebar {
   grid-template-columns: minmax(0, 1fr);
 }
 
 .app-layout.sidebar-closed .app-sidebar {
-  display: none;
+  transform: translateX(-100%);
+  opacity: 0;
+  pointer-events: none;
 }
 
 .app-shell {
@@ -93,6 +100,9 @@ select {
   overflow-y: auto;
   overflow-x: hidden;
   scrollbar-gutter: stable;
+  transform: translateX(0);
+  opacity: 1;
+  transition: transform 0.24s ease, opacity 0.2s ease;
 }
 
 .sidebar-head {
@@ -105,6 +115,11 @@ select {
 .sidebar-brand .brand-mark {
   width: 38px;
   height: 38px;
+}
+
+.sidebar-brand .brand-logo {
+  width: 42px;
+  height: 42px;
 }
 
 .sidebar-icon-button {
@@ -166,6 +181,21 @@ select {
   background: var(--panel-strong);
 }
 
+.view-brand-bar {
+  width: min(100%, 1120px);
+  margin: 0 auto 12px;
+  padding: 9px 10px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background: var(--panel-strong);
+  box-shadow: var(--shadow);
+}
+
+.view-brand-bar .brand-logo {
+  width: 38px;
+  height: 38px;
+}
+
 .company-tool-tabs {
   display: flex;
   gap: 6px;
@@ -184,7 +214,7 @@ select {
 .company-tool-tabs button.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #07110d;
+  color: #06010d;
   font-weight: 800;
 }
 
@@ -198,9 +228,24 @@ select {
   border: 1px solid var(--line);
   border-radius: 8px;
   padding: 9px 12px;
-  background: var(--accent-soft);
+  background: rgba(1, 4, 9, 0.62);
   color: var(--text);
   cursor: pointer;
+}
+
+.sidebar-toggle-button.icon-only {
+  width: 38px;
+  height: 38px;
+  display: inline-grid;
+  place-items: center;
+  padding: 0;
+  font-size: 1.18rem;
+  line-height: 1;
+}
+
+.sidebar-toggle-button.icon-only:hover {
+  background: var(--accent-soft);
+  border-color: var(--accent);
 }
 
 .app-topbar {
@@ -232,9 +277,20 @@ select {
   place-items: center;
   border-radius: 8px;
   background: var(--accent);
-  color: #07110d;
+  color: #06010d;
   font-weight: 900;
   letter-spacing: 0;
+  flex: 0 0 auto;
+}
+
+.brand-logo {
+  width: 44px;
+  height: 44px;
+  display: block;
+  border: 1px solid var(--line);
+  border-radius: 10px;
+  object-fit: cover;
+  box-shadow: 0 0 22px rgba(184, 108, 255, 0.18);
   flex: 0 0 auto;
 }
 
@@ -302,7 +358,7 @@ select {
 
 .compact-control button.active {
   background: var(--accent);
-  color: #07110d;
+  color: #06010d;
   font-weight: 800;
 }
 
@@ -414,7 +470,7 @@ select {
 
 .segment-button.active {
   background: var(--accent);
-  color: #03111f;
+  color: #06010d;
   font-weight: 700;
 }
 
@@ -804,7 +860,7 @@ select {
   place-items: center;
   border-radius: 999px;
   background: var(--accent);
-  color: #07110d;
+  color: #06010d;
 }
 
 .selected-poi-chip span {
@@ -931,7 +987,7 @@ select {
   padding: 10px 12px;
   border-radius: 8px;
   border: 1px solid var(--line);
-  background: rgba(4, 10, 20, 0.96);
+  background: rgba(1, 4, 9, 0.98);
   color: var(--text);
 }
 
@@ -963,7 +1019,7 @@ select {
 .choice-chip.active {
   background: var(--accent);
   border-color: var(--accent);
-  color: #07110d;
+  color: #06010d;
   font-weight: 800;
 }
 
@@ -1166,7 +1222,7 @@ select[multiple] {
 
 .primary-button {
   background: var(--accent);
-  color: #03111f;
+  color: #06010d;
   font-weight: 700;
 }
 
@@ -1383,7 +1439,7 @@ html[data-theme="light"] .route-timeline {
   top: 36px;
   bottom: -2px;
   width: 2px;
-  background: linear-gradient(180deg, rgba(85, 194, 255, 0.5), rgba(85, 194, 255, 0.04));
+  background: linear-gradient(180deg, rgba(184, 108, 255, 0.72), rgba(184, 108, 255, 0.08));
 }
 
 .timeline-stop:last-child::after {
@@ -1401,10 +1457,10 @@ html[data-theme="light"] .route-timeline {
   display: grid;
   place-items: center;
   background: var(--accent);
-  color: #07110d;
+  color: #06010d;
   font-weight: 800;
   border: 2px solid rgba(255, 255, 255, 0.88);
-  box-shadow: 0 10px 22px rgba(42, 118, 210, 0.28);
+  box-shadow: 0 10px 24px rgba(184, 108, 255, 0.34);
   z-index: 1;
 }
 
@@ -1428,7 +1484,7 @@ html[data-theme="light"] .route-timeline {
 
 .timeline-stop.active .timeline-dot {
   transform: scale(1.06);
-  box-shadow: 0 14px 28px rgba(85, 194, 255, 0.32);
+  box-shadow: 0 14px 30px rgba(184, 108, 255, 0.36);
 }
 
 .poi-list {
@@ -1467,7 +1523,7 @@ html[data-theme="light"] .route-timeline {
 
 .poi-card.active {
   border-color: var(--accent);
-  box-shadow: 0 16px 36px rgba(85, 194, 255, 0.22);
+  box-shadow: 0 16px 36px rgba(184, 108, 255, 0.24);
 }
 
 .poi-card-top {
@@ -1527,7 +1583,7 @@ html[data-theme="light"] .route-timeline {
 }
 
 .leaflet-container {
-  background: #101715;
+  background: #010409;
 }
 
 html[data-theme="light"] .leaflet-container {
@@ -1536,9 +1592,9 @@ html[data-theme="light"] .leaflet-container {
 
 .leaflet-popup-content-wrapper,
 .leaflet-popup-tip {
-  background: #0d1930;
+  background: #0d1117;
   color: var(--text);
-  border: 1px solid rgba(108, 164, 255, 0.2);
+  border: 1px solid var(--line);
 }
 
 html[data-theme="light"] .leaflet-popup-content-wrapper,
@@ -1547,15 +1603,15 @@ html[data-theme="light"] .leaflet-popup-tip {
 }
 
 .leaflet-tooltip {
-  background: rgba(4, 11, 22, 0.96);
+  background: rgba(13, 17, 23, 0.98);
   color: var(--text);
-  border: 1px solid rgba(151, 249, 249, 0.22);
+  border: 1px solid var(--line);
   border-radius: 12px;
   box-shadow: 0 18px 30px rgba(0, 0, 0, 0.28);
 }
 
 .leaflet-tooltip-top:before {
-  border-top-color: rgba(4, 11, 22, 0.96);
+  border-top-color: rgba(13, 17, 23, 0.98);
 }
 
 html[data-theme="light"] .leaflet-tooltip {
@@ -1579,11 +1635,11 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
   place-items: center;
   border-radius: 999px;
   background: var(--accent);
-  color: #07110d;
+  color: #06010d;
   font-weight: 800;
   font-size: 0.95rem;
   border: 2px solid rgba(255, 255, 255, 0.92);
-  box-shadow: 0 12px 28px rgba(42, 118, 210, 0.45);
+  box-shadow: 0 12px 28px rgba(184, 108, 255, 0.46);
 }
 
 .route-marker.selected {
@@ -1611,15 +1667,13 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
     max-width: 100%;
     box-shadow: 22px 0 70px rgba(0, 0, 0, 0.42);
     transform: translateX(0);
-    transition: transform 0.24s ease, box-shadow 0.24s ease;
-  }
-
-  .app-layout.sidebar-closed .app-sidebar {
-    display: block;
+    opacity: 1;
+    transition: transform 0.24s ease, opacity 0.2s ease, box-shadow 0.24s ease;
   }
 
   .app-layout.sidebar-closed .app-sidebar {
     transform: translateX(calc(-100% - 24px));
+    opacity: 1;
     pointer-events: none;
     box-shadow: none;
   }
@@ -1707,7 +1761,16 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
 
   .mobile-brand {
     display: grid;
+    grid-template-columns: 32px minmax(0, 1fr);
+    gap: 8px;
+    align-items: center;
     min-width: 0;
+  }
+
+  .mobile-brand-logo {
+    width: 32px;
+    height: 32px;
+    border-radius: 8px;
   }
 
   .mobile-brand strong,
@@ -1777,7 +1840,7 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
 
   .mobile-topbar-actions button.active {
     background: var(--accent);
-    color: #07110d;
+    color: #06010d;
   }
 
   .mobile-status {
@@ -1921,6 +1984,11 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
     height: 34px;
   }
 
+  .sidebar-brand .brand-logo {
+    width: 36px;
+    height: 36px;
+  }
+
   .app-sidebar .preference-form .panel-header {
     margin-bottom: 6px;
   }
@@ -1949,6 +2017,11 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
     width: 34px;
     height: 34px;
     font-size: 0.8rem;
+  }
+
+  .sidebar-brand .brand-logo {
+    width: 34px;
+    height: 34px;
   }
 
   .topbar-brand strong {

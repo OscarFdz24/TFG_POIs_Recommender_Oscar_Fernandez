@@ -1,3 +1,5 @@
+import appLogo from "../assets/icono_web.png";
+
 export default function AppTopbar({
   health,
   language,
@@ -9,7 +11,7 @@ export default function AppTopbar({
   return (
     <header className="app-topbar">
       <div className="topbar-brand">
-        <span className="brand-mark">BCN</span>
+        <img className="brand-logo" src={appLogo} alt="" />
         <div>
           <strong>{t.topbar.title}</strong>
           <span>{t.topbar.subtitle}</span>
