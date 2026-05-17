@@ -169,6 +169,34 @@ Tiene tres vistas funcionales:
 
 Estas vistas se seleccionan automaticamente segun el rol tras login.
 
+## Resultados principales
+
+El proyecto consigue pasar de un sistema experimental basado en notebooks a una aplicacion web funcional conectada con un recomendador hibrido real.
+
+Resultados destacados:
+
+- generacion de rutas completas, no solo recomendacion de POIs aislados
+- integracion de TF-IDF, similitud coseno, calidad del POI, proximidad geografica y restricciones del usuario
+- construccion de rutas mediante heuristica greedy con control de distancia, tiempo y numero de POIs
+- uso de clusters/zonas de Barcelona para mejorar la coherencia geografica de las rutas
+- conexion real entre frontend, backend Node.js, motor Python y dataset hibrido
+- persistencia en MySQL de usuarios, empresas, POIs importados y rutas generadas
+- login con JWT y roles diferenciados para administrador, empresa y usuario final
+- visualizacion de rutas en mapa interactivo con resumen y detalle de POIs
+
+Ejemplo de resultado obtenido por el sistema:
+
+```text
+POIs generados: 6
+Distancia de ruta: 7.79 km
+Tiempo de visita: 400 min
+Desplazamiento estimado: 32 min
+Tiempo total: 432 min
+Modo de ruta: callejeando
+```
+
+La conclusion principal es que el enfoque hibrido permite generar rutas mas utiles que un ranking simple, porque combina relevancia tematica, calidad, cercania y viabilidad practica dentro de una misma experiencia.
+
 ## Capturas de la aplicacion
 
 ### Login
@@ -492,3 +520,5 @@ Los siguientes pasos naturales son:
 ## Idea principal
 
 El valor del proyecto esta en unir data science, machine learning, optimizacion heuristica, backend, frontend y persistencia para pasar de un modelo experimental a una aplicacion web funcional de recomendacion de rutas.
+
+Proyecto academico desarrollado durante el Master en Data Science e Inteligencia Artificial de Evolve.
