@@ -342,6 +342,12 @@ npm install
 
 ## Ejecucion local
 
+Para una instalacion desde cero, usar la guia completa:
+
+```text
+GUIA_EJECUCION_LOCAL.md
+```
+
 Desde la raiz del repositorio:
 
 ```powershell
