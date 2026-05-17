@@ -4,10 +4,13 @@ import LoginPage from "./components/LoginPage.jsx";
 import {
   createAdminClient,
   createAdminUser,
+  createCompanyUser,
   fetchCategories,
   fetchAdminData,
+  fetchCompanyUsers,
   fetchCurrentUser,
   fetchHealth,
+  fetchMyRoutes,
   fetchPois,
   fetchSavedRoute,
   fetchStreetRoute,
@@ -92,6 +95,11 @@ export default function App() {
   const [adminData, setAdminData] = useState(null);
   const [adminLoading, setAdminLoading] = useState(false);
   const [adminMessage, setAdminMessage] = useState("");
+  const [companyMessage, setCompanyMessage] = useState("");
+  const [companyUsersLoading, setCompanyUsersLoading] = useState(false);
+  const [assignedRoutes, setAssignedRoutes] = useState([]);
+  const [companyUsers, setCompanyUsers] = useState([]);
+  const [selectedAssignedUserId, setSelectedAssignedUserId] = useState("");
   const [userRoutes, setUserRoutes] = useState(getInitialUserRoutes);
   const [catalogPois, setCatalogPois] = useState([]);
   const [catalogLoading, setCatalogLoading] = useState(false);
@@ -191,6 +199,20 @@ export default function App() {
 
     handleLoadAdminData();
   }, [appMode, adminData, currentUser]);
+
+  useEffect(() => {
+    if (!currentUser) {
+      return;
+    }
+
+    if (currentUser.role.code === "client" || currentUser.role.code === "admin") {
+      handleLoadCompanyUsers();
+    }
+
+    if (currentUser.role.code === "user") {
+      handleLoadMyRoutes();
+    }
+  }, [currentUser?.id]);
 
   useEffect(() => {
     if (!routeData?.route?.length) {
@@ -364,6 +386,9 @@ export default function App() {
       setCurrentUser(response.user);
       setAppMode(getModeFromUser(response.user));
       setAdminData(null);
+      setAssignedRoutes([]);
+      setCompanyUsers([]);
+      setSelectedAssignedUserId("");
       setRouteData(null);
       setSelectedPoi(null);
     } catch (requestError) {
@@ -379,6 +404,9 @@ export default function App() {
     setAuthToken("");
     setCurrentUser(null);
     setAdminData(null);
+    setAssignedRoutes([]);
+    setCompanyUsers([]);
+    setSelectedAssignedUserId("");
     setRouteData(null);
     setSelectedPoi(null);
     setSavedRouteInfo(null);
@@ -446,6 +474,51 @@ export default function App() {
       setError(requestError.message || t.admin.users.statusError);
     } finally {
       setAdminLoading(false);
+    }
+  }
+
+  async function handleLoadCompanyUsers() {
+    setCompanyUsersLoading(true);
+
+    try {
+      const response = await fetchCompanyUsers();
+      setCompanyUsers(response.items || []);
+    } catch {
+      setCompanyUsers([]);
+    } finally {
+      setCompanyUsersLoading(false);
+    }
+  }
+
+  async function handleCreateCompanyUser(payload) {
+    setCompanyUsersLoading(true);
+    setCompanyMessage("");
+    setError("");
+
+    try {
+      await createCompanyUser(payload);
+      const response = await fetchCompanyUsers();
+      setCompanyUsers(response.items || []);
+      setCompanyMessage(t.companyUsers.created);
+    } catch (requestError) {
+      setError(requestError.message || t.companyUsers.createError);
+    } finally {
+      setCompanyUsersLoading(false);
+    }
+  }
+
+  async function handleLoadMyRoutes() {
+    setLoadingSavedRoute(true);
+    setError("");
+
+    try {
+      const response = await fetchMyRoutes();
+      setAssignedRoutes(response.items || []);
+    } catch (requestError) {
+      setError(requestError.message || t.saved.loadError);
+      setAssignedRoutes([]);
+    } finally {
+      setLoadingSavedRoute(false);
     }
   }
 
@@ -585,6 +658,7 @@ export default function App() {
         navigation: routeData.navigation || null,
         createdByUserId: currentUser?.id,
         clientId: currentUser?.client?.id,
+        assignedToUserId: selectedAssignedUserId || null,
       });
       setSavedRouteInfo(saved);
     } catch (requestError) {
@@ -764,9 +838,13 @@ export default function App() {
       adminData={adminData}
       adminLoading={adminLoading}
       adminMessage={adminMessage}
+      assignedRoutes={assignedRoutes}
       categories={categories}
       catalogLoading={catalogLoading}
       catalogPois={catalogPois}
+      companyMessage={companyMessage}
+      companyUsers={companyUsers}
+      companyUsersLoading={companyUsersLoading}
       defaultStart={DEFAULT_START}
       error={error}
       health={health}
@@ -778,8 +856,11 @@ export default function App() {
       onAppModeChange={setAppMode}
       onCreateAdminClient={handleCreateAdminClient}
       onCreateAdminUser={handleCreateAdminUser}
+      onCreateCompanyUser={handleCreateCompanyUser}
       onLanguageChange={setLanguage}
       onLoadAdminData={handleLoadAdminData}
+      onLoadMyRoutes={handleLoadMyRoutes}
+      onLoadCompanyUsers={handleLoadCompanyUsers}
       onLoadSavedRoute={handleLoadSavedRoute}
       onManualPoiAdd={handleAddManualPoi}
       onManualPoiRemove={handleRemoveManualPoi}
@@ -792,6 +873,7 @@ export default function App() {
       onRouteDisplayModeChange={setRouteDisplayMode}
       onSearchPois={handleSearchPois}
       onSaveUserRoute={handleSaveUserRoute}
+      onAssignedUserChange={setSelectedAssignedUserId}
       onSaveRoute={handleSaveRoute}
       onBuildManualRoute={handleBuildManualRoute}
       onSubmit={handleSubmit}
@@ -800,6 +882,7 @@ export default function App() {
       onLogout={handleLogout}
       routeData={routeData}
       routeDisplayMode={routeDisplayMode}
+      selectedAssignedUserId={selectedAssignedUserId}
       manualPois={manualPois}
       editorConstraints={editorConstraints}
       userRoutes={userRoutes}

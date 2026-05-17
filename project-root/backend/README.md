@@ -9,11 +9,13 @@ Su funcion es:
 - leer datos auxiliares de POIs/categorias
 - guardar y recuperar rutas en MySQL
 - gestionar el panel admin de empresas y usuarios
+- gestionar usuarios finales de empresa y rutas asignadas
 
 ## Tecnologias
 
 ```text
-Node.js
+Node.js v22.19.0
+npm 10.9.3
 Express
 MySQL
 bcryptjs
@@ -23,13 +25,13 @@ jsonwebtoken
 Dependencias actuales:
 
 ```text
-bcryptjs
-cors
-csv-parse
-dotenv
-express
-jsonwebtoken
-mysql2
+bcryptjs@^3.0.3
+cors@^2.8.5
+csv-parse@^5.5.6
+dotenv@^16.4.5
+express@^4.21.2
+jsonwebtoken@^9.0.3
+mysql2@^3.22.3
 ```
 
 ## Scripts
@@ -148,6 +150,7 @@ El backend envia JSON por `stdin` y recibe JSON por `stdout`.
 
 ```text
 POST /api/routes
+GET  /api/routes/my
 GET  /api/routes/:publicId
 ```
 
@@ -158,6 +161,9 @@ GET  /api/routes/:publicId
 - preferencias
 - navegacion
 - POIs y orden
+- usuario creador, empresa y usuario final asignado si existe
+
+`GET /api/routes/my` devuelve las rutas asignadas al usuario autenticado.
 
 Tablas usadas:
 
@@ -189,6 +195,22 @@ Passwords:
 - se hashean con `bcryptjs`
 - se guardan en `users.password_hash`
 
+### Empresa
+
+```text
+GET  /api/company/users
+POST /api/company/users
+```
+
+Uso:
+
+- listar usuarios finales de la empresa autenticada
+- buscar usuarios finales desde frontend
+- crear usuarios finales con password hasheada
+- alimentar el selector de asignacion de rutas
+
+Un usuario con rol `client` solo gestiona usuarios de su propia empresa. El rol `admin` puede consultar una vision mas amplia si se usa esta API.
+
 ## Estado de autenticacion
 
 El backend ya tiene:
@@ -199,11 +221,13 @@ El backend ya tiene:
 - creacion de usuarios con bcrypt
 - login con JWT
 - endpoint `/api/auth/me`
+- rutas asignadas a usuarios finales
+- alta de usuarios finales desde la vista Empresa
 
 Todavia falta:
 
 - extender permisos por rol al resto de endpoints privados
-- asignar rutas a usuarios finales autenticados
+- mejorar la gestion/listado de rutas guardadas desde la vista Empresa
 
 ## Ejecutar
 

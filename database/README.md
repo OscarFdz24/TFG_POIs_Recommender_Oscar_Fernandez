@@ -8,6 +8,7 @@ La BDD se usa como capa de persistencia y gestion:
 - usuarios y roles
 - POIs importados
 - rutas guardadas
+- asignacion de rutas a usuarios finales
 - POIs incluidos en cada ruta
 - JSON con preferencias, resumen, ruta y navegacion
 - estructura preparada para futuras descripciones generadas por IA
@@ -158,11 +159,11 @@ Roles actuales:
 
 ```text
 admin   -> administra empresas, usuarios y estado general
-client  -> empresa/cliente que crea rutas y usuarios finales
+client  -> empresa/cliente que crea rutas, usuarios finales y asigna rutas
 user    -> usuario final que consulta rutas asignadas
 ```
 
-Actualmente el panel admin permite crear empresas y usuarios, y el login JWT ya esta activo en backend/frontend.
+Actualmente el panel admin permite crear empresas y usuarios, el login JWT ya esta activo en backend/frontend y la vista Empresa permite crear usuarios finales de su propia empresa.
 
 ## Panel admin y BDD
 
@@ -184,6 +185,9 @@ Funcionalidades actuales:
 - asignar usuario a empresa
 - activar/desactivar usuarios
 - buscar empresas y usuarios desde frontend
+- crear usuarios finales desde la vista Empresa
+- asignar rutas guardadas a usuarios finales
+- consultar rutas asignadas desde la vista Usuario
 
 El backend usa `bcryptjs` para guardar passwords hasheadas.
 
@@ -221,6 +225,15 @@ Script:
 
 ```text
 database/import_pois_to_mysql.py
+```
+
+Dependencia Python usada por el importador:
+
+```text
+Python 3.11.15
+pandas==3.0.2
+pyarrow==16.1.0
+mysql-connector-python==9.7.0
 ```
 
 Prueba sin insertar:
@@ -292,9 +305,11 @@ La BDD ya esta preparada para:
 - importar POIs
 - gestionar empresas
 - gestionar usuarios
-- preparar login con bcrypt
+- login con bcrypt/JWT
+- guardar rutas asignadas a usuarios reales
+- recuperar rutas del usuario autenticado
 
 Falta como siguiente paso:
 
 - extender permisos por rol a todos los endpoints privados
-- asignacion real de rutas a usuarios autenticados
+- mejorar la gestion/listado de rutas desde la vista Empresa

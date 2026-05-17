@@ -79,6 +79,21 @@ export function fetchSavedRoute(publicId) {
   return request(`/api/routes/${encodeURIComponent(publicId)}`);
 }
 
+export function fetchMyRoutes() {
+  return request("/api/routes/my");
+}
+
+export function fetchCompanyUsers() {
+  return request("/api/company/users");
+}
+
+export function createCompanyUser(payload) {
+  return request("/api/company/users", {
+    method: "POST",
+    body: JSON.stringify(payload),
+  });
+}
+
 export function fetchAdminData() {
   return request("/api/admin");
 }

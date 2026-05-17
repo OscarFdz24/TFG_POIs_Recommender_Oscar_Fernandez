@@ -27,6 +27,9 @@ Actualmente incluye:
 - guardado y recuperacion de rutas en MySQL
 - panel de administrador para empresas y usuarios
 - login funcional con JWT
+- alta de usuarios finales desde la vista Empresa
+- asignacion de rutas a usuarios finales
+- vista Usuario con rutas asignadas desde MySQL
 - importacion de POIs a MySQL
 - interfaz responsive con modo claro/oscuro e idioma ES/EN
 
@@ -147,10 +150,10 @@ project-root/
 Tiene tres vistas funcionales:
 
 - **Admin**: gestion de empresas, usuarios, estado y datos generales.
-- **Empresa**: generador inteligente, constructor manual y editor de rutas.
-- **Usuario**: carga y consulta de rutas guardadas/asignadas.
+- **Empresa**: generador inteligente, constructor manual, editor de rutas, alta de usuarios finales y asignacion de rutas.
+- **Usuario**: consulta de rutas asignadas desde MySQL, carga por codigo publico y acceso rapido a rutas guardadas localmente.
 
-En el futuro, estas vistas se seleccionaran automaticamente segun el rol tras login.
+Estas vistas se seleccionan automaticamente segun el rol tras login.
 
 ## Backend
 
@@ -177,6 +180,7 @@ GET    /api/categories
 GET    /api/pois
 POST   /api/recommend-route
 POST   /api/routes
+GET    /api/routes/my
 GET    /api/routes/:publicId
 GET    /api/admin
 POST   /api/admin/clients
@@ -184,6 +188,8 @@ POST   /api/admin/users
 PATCH  /api/admin/users/:userId/status
 POST   /api/auth/login
 GET    /api/auth/me
+GET    /api/company/users
+POST   /api/company/users
 ```
 
 ## Frontend
@@ -213,6 +219,9 @@ Funcionalidades:
 - buscador de POIs
 - vista de usuario para recuperar rutas
 - panel admin responsive
+- panel de empresa para crear usuarios finales
+- asignacion de rutas a usuarios finales
+- consulta de rutas asignadas desde la vista usuario
 
 ## Base de datos MySQL
 
@@ -229,6 +238,7 @@ Uso actual:
 - usuarios
 - POIs importados desde el dataset hibrido
 - rutas guardadas
+- asignacion de rutas a usuarios finales
 - POIs de cada ruta y su orden
 - JSON con preferencias, resumen, ruta y navegacion
 
@@ -258,23 +268,22 @@ La password se guarda como hash bcrypt en `users.password_hash`.
 
 ### Python
 
-Version usada:
+Version usada en el entorno Conda `master_ds_clean`:
 
 ```text
-Python 3.11
+Python 3.11.15
 ```
 
 Librerias principales:
 
 ```text
-pandas
-numpy
-scikit-learn
-pyarrow
-matplotlib
-jupyter
-notebook
-mysql-connector-python
+pandas==3.0.2
+numpy==2.4.4
+scikit-learn==1.8.0
+pyarrow==16.1.0
+matplotlib==3.10.8
+notebook==7.5.5
+mysql-connector-python==9.7.0
 ```
 
 Instalacion orientativa:
@@ -285,16 +294,23 @@ pip install pandas numpy scikit-learn pyarrow matplotlib jupyter notebook mysql-
 
 ### Backend Node.js
 
+Versiones usadas:
+
+```text
+Node.js v22.19.0
+npm 10.9.3
+```
+
 Dependencias actuales:
 
 ```text
-bcryptjs
-cors
-csv-parse
-dotenv
-express
-jsonwebtoken
-mysql2
+bcryptjs 3.0.3
+cors 2.8.5
+csv-parse 5.5.6
+dotenv 16.4.5
+express 4.21.2
+jsonwebtoken 9.0.3
+mysql2 3.22.3
 ```
 
 Instalacion:
@@ -309,12 +325,12 @@ npm install
 Dependencias actuales:
 
 ```text
-react
-react-dom
-leaflet
-react-leaflet
-vite
-@vitejs/plugin-react
+react 18.3.1
+react-dom 18.3.1
+leaflet 1.9.4
+react-leaflet 4.2.1
+vite 5.4.11
+@vitejs/plugin-react 4.3.4
 ```
 
 Instalacion:
@@ -394,9 +410,8 @@ uso_ml_en_el_recomendador.txt
 Los siguientes pasos naturales son:
 
 - extender la proteccion por rol al resto de endpoints privados
-- asociar rutas a empresa y usuario autenticado
-- permitir que empresa asigne rutas a usuarios
-- crear panel de usuario final conectado a BDD
+- mejorar la gestion/listado de rutas desde la vista Empresa
+- anadir busqueda avanzada de rutas guardadas
 - anadir tests de backend y recomendador
 - mejorar explicabilidad de POIs con textos enriquecidos
 

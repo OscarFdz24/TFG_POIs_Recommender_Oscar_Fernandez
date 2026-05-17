@@ -23,17 +23,17 @@ React Leaflet
 Dependencias:
 
 ```text
-react
-react-dom
-leaflet
-react-leaflet
+react@^18.3.1
+react-dom@^18.3.1
+leaflet@^1.9.4
+react-leaflet@^4.2.1
 ```
 
 Dependencias de desarrollo:
 
 ```text
-vite
-@vitejs/plugin-react
+vite@^5.4.11
+@vitejs/plugin-react@^4.3.4
 ```
 
 ## Scripts
@@ -89,6 +89,7 @@ Incluye tres herramientas:
 Generador inteligente
 Constructor manual
 Editor de ruta
+Usuarios
 ```
 
 Generador inteligente:
@@ -111,12 +112,19 @@ Editor de ruta:
 - anadir POIs desde catalogo
 - recalcular resumen basico
 
+Usuarios:
+
+- crear usuarios finales de la empresa
+- buscar/listar usuarios finales
+- usar esos usuarios en el selector de asignacion al guardar una ruta
+
 ### Usuario
 
 Permite:
 
+- ver rutas asignadas desde MySQL
 - cargar ruta por codigo publico
-- guardar rutas cargadas en localStorage
+- guardar accesos rapidos a rutas cargadas en localStorage
 - consultar mapa, resumen y detalle de POIs
 
 ## Servicios API
@@ -138,6 +146,9 @@ fetchPois
 recommendRoute
 saveRoute
 fetchSavedRoute
+fetchMyRoutes
+fetchCompanyUsers
+createCompanyUser
 fetchAdminData
 createAdminClient
 createAdminUser
@@ -212,10 +223,10 @@ El frontend ya esta conectado con:
 - backend Node.js
 - recomendador Python
 - MySQL para rutas/admin
+- MySQL para usuarios finales y rutas asignadas
 - OSRM para trazado peatonal
 
 Siguiente paso:
 
-- asignar rutas a usuarios autenticados
-- mostrar rutas del usuario desde BDD
+- mejorar la gestion/listado de rutas guardadas desde Empresa
 - completar permisos por rol en todos los flujos privados

@@ -731,11 +731,27 @@ select {
 
 .save-route-actions {
   display: grid;
-  grid-template-columns: auto minmax(0, 1fr);
+  grid-template-columns: minmax(220px, 340px) auto minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   margin-top: 14px;
   text-align: left;
+}
+
+.assign-route-field {
+  display: grid;
+  gap: 6px;
+}
+
+.assign-route-field span {
+  color: var(--muted);
+  font-size: 0.82rem;
+  font-weight: 800;
+}
+
+.assigned-routes-box {
+  border-top: 0;
+  padding-top: 0;
 }
 
 .saved-route-box,
@@ -1161,6 +1177,71 @@ html[data-theme="light"] .admin-linked-user-box {
 .route-editor-panel {
   display: grid;
   gap: 14px;
+}
+
+.company-users-panel {
+  display: grid;
+  gap: 14px;
+}
+
+.company-users-hero {
+  display: flex;
+  justify-content: space-between;
+  gap: 16px;
+  align-items: center;
+}
+
+.company-users-hero h2,
+.company-users-hero p {
+  margin: 0;
+}
+
+.company-users-hero h2,
+.company-user-form h3 {
+  font-family: Georgia, "Times New Roman", serif;
+}
+
+.company-users-hero p:not(.eyebrow) {
+  color: var(--muted);
+}
+
+.company-users-grid {
+  display: grid;
+  grid-template-columns: minmax(280px, 420px) minmax(0, 1fr);
+  gap: 16px;
+  align-items: start;
+}
+
+.company-user-list {
+  display: grid;
+  gap: 10px;
+  max-height: 460px;
+  overflow: auto;
+  padding-right: 4px;
+}
+
+.company-user-card {
+  display: flex;
+  justify-content: space-between;
+  gap: 12px;
+  align-items: center;
+  padding: 12px;
+  border: 1px solid var(--line);
+  border-radius: 8px;
+  background:
+    linear-gradient(135deg, rgba(184, 108, 255, 0.06), transparent 42%),
+    var(--panel-strong);
+}
+
+.company-user-card strong,
+.company-user-card span,
+.company-user-card small {
+  display: block;
+}
+
+.company-user-card span,
+.company-user-card small {
+  color: var(--muted);
 }
 
 .route-editor-panel h2,
@@ -2272,6 +2353,10 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
     grid-template-columns: 1fr;
   }
 
+  .company-users-grid {
+    grid-template-columns: 1fr;
+  }
+
   .toolbar-left {
     width: 100%;
   }
@@ -2320,7 +2405,8 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
   }
 
   .admin-hero,
-  .admin-table-head {
+  .admin-table-head,
+  .company-users-hero {
     align-items: stretch;
     flex-direction: column;
   }
@@ -2443,8 +2529,10 @@ html[data-theme="light"] .leaflet-tooltip-top:before {
   }
 
   .editor-route-item,
-  .editor-catalog-card {
+  .editor-catalog-card,
+  .company-user-card {
     grid-template-columns: 1fr;
+    display: grid;
   }
 
   .editor-route-actions {

@@ -126,7 +126,44 @@ async function insertRoutePois(connection, routeId, route) {
   }
 }
 
-export async function saveGeneratedRoute(body) {
+async function validateAssignedUser(connection, assignedToUserId, currentUser) {
+  const parsedAssignedToUserId = intOrNull(assignedToUserId);
+
+  if (!parsedAssignedToUserId) {
+    return null;
+  }
+
+  const [rows] = await connection.execute(
+    `
+      SELECT u.id, u.client_id AS clientId, r.code AS roleCode
+      FROM users u
+      JOIN roles r ON r.id = u.role_id
+      WHERE u.id = :userId
+        AND u.is_active = TRUE
+      LIMIT 1
+    `,
+    { userId: parsedAssignedToUserId },
+  );
+
+  if (!rows.length || rows[0].roleCode !== "user") {
+    const error = new Error("El usuario asignado no existe o no es un usuario final activo.");
+    error.statusCode = 400;
+    throw error;
+  }
+
+  if (
+    currentUser?.role?.code === "client" &&
+    Number(rows[0].clientId) !== Number(currentUser.client?.id)
+  ) {
+    const error = new Error("No puedes asignar rutas a usuarios de otra empresa.");
+    error.statusCode = 403;
+    throw error;
+  }
+
+  return parsedAssignedToUserId;
+}
+
+export async function saveGeneratedRoute(body, currentUser = null) {
   const recommendation = getRecommendationFromBody(body || {});
   validateRecommendation(recommendation);
 
@@ -145,6 +182,17 @@ export async function saveGeneratedRoute(body) {
       : null;
 
   return withTransaction(async (connection) => {
+    const assignedToUserId = await validateAssignedUser(
+      connection,
+      body.assignedToUserId,
+      currentUser,
+    );
+    const createdByUserId = currentUser?.id || intOrNull(body.createdByUserId);
+    const clientId =
+      currentUser?.role?.code === "client"
+        ? currentUser.client?.id
+        : intOrNull(body.clientId || currentUser?.client?.id);
+
     const [routeResult] = await connection.execute(
       `
         INSERT INTO routes (
@@ -200,9 +248,9 @@ export async function saveGeneratedRoute(body) {
         publicId,
         name: buildRouteName(body, recommendation),
         generationMode: meta.mode || "python-hybrid-recommender",
-        createdByUserId: intOrNull(body.createdByUserId),
-        assignedToUserId: intOrNull(body.assignedToUserId),
-        clientId: intOrNull(body.clientId),
+        createdByUserId,
+        assignedToUserId,
+        clientId,
         startLatitude: startLocation.lat,
         startLongitude: startLocation.lng,
         totalPois: intOrNull(summary.totalPois) || recommendation.route.length,
@@ -304,4 +352,32 @@ export async function getSavedRoute(publicId) {
     ...savedRoute,
     pois,
   };
+}
+
+export async function getAssignedRoutesForUser(userId) {
+  const pool = getDbPool();
+  const [rows] = await pool.execute(
+    `
+      SELECT
+        id,
+        public_id AS publicId,
+        name,
+        status,
+        generation_mode AS generationMode,
+        total_pois AS totalPois,
+        requested_pois AS requestedPois,
+        total_distance_km AS totalDistanceKm,
+        total_visit_minutes AS totalVisitMinutes,
+        total_travel_minutes AS totalTravelMinutes,
+        total_experience_minutes AS totalExperienceMinutes,
+        created_at AS createdAt,
+        updated_at AS updatedAt
+      FROM routes
+      WHERE assigned_to_user_id = :userId
+      ORDER BY created_at DESC, id DESC
+    `,
+    { userId },
+  );
+
+  return rows;
 }

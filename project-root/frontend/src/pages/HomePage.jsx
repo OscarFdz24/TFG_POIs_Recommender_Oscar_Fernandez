@@ -5,15 +5,20 @@ import AppSidebar from "../components/AppSidebar.jsx";
 import PoiCatalog from "../components/PoiCatalog.jsx";
 import RouteEditor from "../components/RouteEditor.jsx";
 import AdminPanel from "../components/AdminPanel.jsx";
+import CompanyUsersPanel from "../components/CompanyUsersPanel.jsx";
 import appLogo from "../assets/icono_web.png";
 
 export default function HomePage({
   adminData,
   adminLoading,
   adminMessage,
+  assignedRoutes,
   categories,
   catalogLoading,
   catalogPois,
+  companyMessage,
+  companyUsers,
+  companyUsersLoading,
   defaultStart,
   error,
   health,
@@ -26,8 +31,11 @@ export default function HomePage({
   onAppModeChange,
   onCreateAdminClient,
   onCreateAdminUser,
+  onCreateCompanyUser,
   onLanguageChange,
   onLoadAdminData,
+  onLoadCompanyUsers,
+  onLoadMyRoutes,
   onLoadSavedRoute,
   onManualPoiAdd,
   onManualPoiRemove,
@@ -39,6 +47,7 @@ export default function HomePage({
   onEditorRemovePoi,
   onRouteDisplayModeChange,
   onSearchPois,
+  onAssignedUserChange,
   onSaveUserRoute,
   onSaveRoute,
   onBuildManualRoute,
@@ -48,6 +57,7 @@ export default function HomePage({
   onLogout,
   routeData,
   routeDisplayMode,
+  selectedAssignedUserId,
   manualPois,
   editorConstraints,
   savedRouteInfo,
@@ -66,6 +76,7 @@ export default function HomePage({
   const isSmartTool = isCompanyMode && companyTool === "smart";
   const isManualTool = isCompanyMode && companyTool === "manual";
   const isEditorTool = isCompanyMode && companyTool === "editor";
+  const isCompanyUsersTool = isCompanyMode && companyTool === "users";
   const layoutMode = isSmartTool
     ? sidebarOpen
       ? "sidebar-open"
@@ -323,6 +334,13 @@ export default function HomePage({
                 >
                   {t.companyTools.editor}
                 </button>
+                <button
+                  className={companyTool === "users" ? "active" : ""}
+                  onClick={() => setCompanyTool("users")}
+                  type="button"
+                >
+                  {t.companyTools.users}
+                </button>
               </div>
               <p>{t.companyTools.description[companyTool]}</p>
             </section>
@@ -346,7 +364,7 @@ export default function HomePage({
               <div>
                 <p className="eyebrow">{t.userAccess.eyebrow}</p>
                 <h2>{t.userAccess.title}</h2>
-                <p>{t.userAccess.description}</p>
+              <p>{t.userAccess.description}</p>
               </div>
               <form className="user-loader-form" onSubmit={submitRouteCode}>
                 <label>
@@ -361,6 +379,48 @@ export default function HomePage({
                   {loadingSavedRoute ? t.userAccess.loading : t.userAccess.load}
                 </button>
               </form>
+              <div className="user-routes-wallet assigned-routes-box">
+                <div className="user-routes-wallet-head">
+                  <div>
+                    <p className="eyebrow">{t.userRoutes.assignedEyebrow}</p>
+                    <h3>{t.userRoutes.assignedTitle}</h3>
+                  </div>
+                  <button
+                    className="secondary-button"
+                    disabled={loadingSavedRoute}
+                    onClick={onLoadMyRoutes}
+                    type="button"
+                  >
+                    {loadingSavedRoute ? t.userAccess.loading : t.admin.refresh}
+                  </button>
+                </div>
+
+                {assignedRoutes.length ? (
+                  <div className="user-route-list">
+                    {assignedRoutes.map((route) => (
+                      <article className="user-route-item" key={route.publicId}>
+                        <div>
+                          <strong>{route.name}</strong>
+                          <span>{route.totalPois} POIs</span>
+                          <code>{route.publicId}</code>
+                        </div>
+                        <div className="user-route-actions">
+                          <button
+                            className="secondary-button"
+                            disabled={loadingSavedRoute}
+                            onClick={() => onLoadSavedRoute(route.publicId)}
+                            type="button"
+                          >
+                            {t.userRoutes.open}
+                          </button>
+                        </div>
+                      </article>
+                    ))}
+                  </div>
+                ) : (
+                  <p className="user-routes-empty">{t.userRoutes.noAssigned}</p>
+                )}
+              </div>
               <div className="user-routes-wallet">
                 <div className="user-routes-wallet-head">
                   <div>
@@ -449,7 +509,18 @@ export default function HomePage({
                 />
               )}
 
-              {visibleRouteData ? (
+              {isCompanyUsersTool && (
+                <CompanyUsersPanel
+                  loading={companyUsersLoading}
+                  message={companyMessage}
+                  onCreateUser={onCreateCompanyUser}
+                  onRefresh={onLoadCompanyUsers}
+                  t={t}
+                  users={companyUsers}
+                />
+              )}
+
+              {!isCompanyUsersTool && visibleRouteData ? (
                 <section className="panel route-overview">
                   <div className="route-overview-heading">
                     <p className="eyebrow">{t.overview.eyebrow}</p>
@@ -494,6 +565,22 @@ export default function HomePage({
                   </div>
                   {!isUserMode && (
                     <div className="save-route-actions">
+                      {companyUsers.length ? (
+                        <label className="assign-route-field">
+                          <span>{t.saved.assignToUser}</span>
+                          <select
+                            onChange={(event) => onAssignedUserChange(event.target.value)}
+                            value={selectedAssignedUserId}
+                          >
+                            <option value="">{t.saved.noAssignedUser}</option>
+                            {companyUsers.map((user) => (
+                              <option key={user.id} value={user.id}>
+                                {user.name} - {user.email}
+                              </option>
+                            ))}
+                          </select>
+                        </label>
+                      ) : null}
                       <button
                         className="primary-button"
                         disabled={savingRoute}
@@ -518,6 +605,7 @@ export default function HomePage({
                 </section>
               ) : null}
 
+              {!isCompanyUsersTool && (
               <RouteMap
                 onPoiSelect={onPoiSelect}
                 onRouteDisplayModeChange={onRouteDisplayModeChange}
@@ -529,7 +617,8 @@ export default function HomePage({
                 t={t}
                 theme={theme}
               />
-              {visibleRouteData ? (
+              )}
+              {!isCompanyUsersTool && visibleRouteData ? (
                 <ResultsSidebar
                   meta={visibleRouteData.meta}
                   onPoiSelect={onPoiSelect}
@@ -538,13 +627,13 @@ export default function HomePage({
                   summary={visibleRouteData.summary}
                   t={t}
                 />
-              ) : (
+              ) : !isCompanyUsersTool ? (
                 <section className="panel empty-panel">
                   <p className="eyebrow">{t.empty.eyebrow}</p>
                   <h2>{t.empty.title}</h2>
                   <p>{t.empty.description}</p>
                 </section>
-              )}
+              ) : null}
             </div>
           </section>
           )}
