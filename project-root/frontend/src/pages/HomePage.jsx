@@ -565,9 +565,9 @@ export default function HomePage({
                   </div>
                   {!isUserMode && (
                     <div className="save-route-actions">
-                      {companyUsers.length ? (
-                        <label className="assign-route-field">
-                          <span>{t.saved.assignToUser}</span>
+                      <label className="assign-route-field">
+                        <span>{t.saved.assignToUser}</span>
+                        {companyUsers.length ? (
                           <select
                             onChange={(event) => onAssignedUserChange(event.target.value)}
                             value={selectedAssignedUserId}
@@ -579,8 +579,12 @@ export default function HomePage({
                               </option>
                             ))}
                           </select>
-                        </label>
-                      ) : null}
+                        ) : (
+                          <p className="assign-route-empty">
+                            {companyUsersLoading ? t.companyUsers.loading : t.saved.noUsersToAssign}
+                          </p>
+                        )}
+                      </label>
                       <button
                         className="primary-button"
                         disabled={savingRoute}

@@ -146,6 +146,8 @@ export const translations = {
       defaultRouteName: "Ruta Barcelona",
       assignToUser: "Asignar a usuario",
       noAssignedUser: "Sin asignar",
+      noUsersToAssign:
+        "No hay usuarios finales cargados para esta empresa. Crealos o actualizalos desde la pestaña Usuarios.",
     },
     userAccess: {
       eyebrow: "Acceso de usuario",
@@ -505,6 +507,8 @@ export const translations = {
       defaultRouteName: "Barcelona route",
       assignToUser: "Assign to user",
       noAssignedUser: "Unassigned",
+      noUsersToAssign:
+        "No final users are loaded for this company. Create or refresh them from the Users tab.",
     },
     userAccess: {
       eyebrow: "User access",
