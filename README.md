@@ -1,8 +1,22 @@
-# Sistema hibrido de recomendacion de rutas de POIs en Barcelona
+# Sistema híbrido de recomendación de rutas de POIs en Barcelona
 
-Este repositorio contiene mi TFM: un sistema inteligente para recomendar rutas personalizadas de puntos de interes en Barcelona.
+Este repositorio contiene el desarrollo de mi Trabajo Fin de Máster, centrado en la creación de un sistema inteligente de recomendación de rutas personalizadas sobre puntos de interés turísticos en Barcelona.
 
-La idea principal no es recomendar POIs aislados, sino construir una ruta completa, viable y adaptada a las preferencias del usuario. Para ello se combinan senales de contenido, calidad, proximidad geografica y restricciones de ruta.
+El problema que se busca resolver no consiste únicamente en recomendar lugares individuales de forma aislada, sino en construir rutas completas, coherentes y viables para un usuario real de manera rápida, eficaz y escalonada. En un contexto turístico, una buena recomendación no depende solo de que un POI sea popular o tenga una buena valoración, sino también de que encaje con los intereses del usuario, esté situado en una zona razonable, pueda visitarse dentro del tiempo disponible y forme parte de un recorrido lógico.
+
+Por este motivo, el proyecto plantea un sistema de recomendación híbrido que combina diferentes señales:
+
+- similitud temática entre las preferencias del usuario y los POIs, mediante técnicas de procesamiento de texto como TF-IDF y similitud coseno;
+- calidad y relevancia de cada POI, usando métricas como rating, score y señales de confianza;
+- proximidad geográfica respecto al punto de inicio y entre los propios POIs;
+- coherencia espacial mediante agrupación geográfica de los puntos de interés;
+- restricciones prácticas introducidas por el usuario, como distancia máxima, tiempo disponible, número mínimo y máximo de POIs, categorías, subcategorías o zonas de la ciudad.
+
+El objetivo final es pasar de un modelo experimental a una aplicación funcional como MVP. Para ello, el sistema no se queda únicamente en notebooks de análisis, sino que integra el recomendador híbrido dentro de una arquitectura web completa formada por frontend, backend, motor Python de recomendación y base de datos MySQL.
+
+La aplicación permite que una empresa o entidad turística pueda generar rutas inteligentes, construir rutas manualmente, editar rutas existentes, guardar rutas en base de datos y asignarlas a usuarios finales. A su vez, el usuario final puede iniciar sesión, consultar sus rutas asignadas y visualizarlas en un mapa interactivo junto con el resumen de la ruta y el detalle de los POIs.
+
+En resumen, el proyecto aborda el problema de la planificación personalizada de rutas turísticas combinando técnicas de machine learning, análisis geoespacial, optimización heurística, desarrollo backend, frontend y persistencia de datos. El resultado es un sistema híbrido orientado a un caso de uso real: recomendar rutas turísticas útiles, personalizadas y visualmente interpretables en la ciudad de Barcelona.
 
 ## Estado actual del proyecto
 
@@ -154,6 +168,60 @@ Tiene tres vistas funcionales:
 - **Usuario**: consulta de rutas asignadas desde MySQL, carga por codigo publico y acceso rapido a rutas guardadas localmente.
 
 Estas vistas se seleccionan automaticamente segun el rol tras login.
+
+## Capturas de la aplicacion
+
+### Login
+
+Pantalla de acceso con autenticacion por email/password, seleccion de tema e idioma.
+
+![Login de la aplicacion](docs/images/login.png)
+
+### Panel de administrador
+
+Vista de administracion para gestionar empresas, usuarios, estado general del sistema y metricas principales.
+
+![Panel de administrador](docs/images/panel-admin.png)
+
+### Generador inteligente de rutas
+
+Vista de empresa conectada al sistema hibrido. Permite introducir preferencias, generar una ruta, ver resumen, mapa y guardar/asignar la ruta.
+
+![Generador inteligente de rutas](docs/images/generador-inteligente-ruta.png)
+
+### Constructor manual de POIs
+
+Catalogo de POIs con filtros por busqueda, categoria, subcategoria, zona y rating para construir rutas manuales.
+
+![Constructor manual de POIs](docs/images/constructor-manual-pois.png)
+
+### Editor de ruta
+
+Vista para modificar una ruta activa: ajustar restricciones, quitar POIs, cambiar el orden y anadir nuevos POIs desde el catalogo.
+
+![Editor de ruta](docs/images/editor-ruta.png)
+
+### Gestion de usuarios de empresa
+
+Pantalla para que una empresa cree usuarios finales y los tenga disponibles para asignarles rutas guardadas.
+
+![Gestion de usuarios de empresa](docs/images/gestion-usuarios-empresa.png)
+
+### Vista de usuario final
+
+Vista donde el usuario final puede consultar rutas asignadas desde MySQL, cargar rutas por codigo publico y guardarlas como acceso rapido.
+
+![Vista de usuario final](docs/images/vista-usuario-rutas.png)
+
+### Mapa y resultados
+
+Mapa interactivo con trazado peatonal y POIs numerados de la ruta.
+
+![Mapa de ruta interactiva](docs/images/mapa-ruta-interactiva.png)
+
+Listado de POIs recomendados con resumen de distancia, tiempos y detalle de cada punto de interes.
+
+![Resultados de POIs recomendados](docs/images/resultados-pois-recomendados.png)
 
 ## Backend
 
